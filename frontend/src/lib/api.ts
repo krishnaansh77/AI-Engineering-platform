@@ -49,6 +49,24 @@ export interface QueryResponse {
   retrieval_count: number;
 }
 
+export interface DependencyGraphNode {
+  id: string;
+  file_path: string;
+}
+
+export interface DependencyGraphEdge {
+  source: string;
+  target: string;
+  import: string;
+}
+
+export interface DependencyGraph {
+  nodes: DependencyGraphNode[];
+  edges: DependencyGraphEdge[];
+  node_count: number;
+  edge_count: number;
+}
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -92,6 +110,11 @@ export const api = {
 
   getRepoStats: async (id: string): Promise<RepoStats> => {
     const { data } = await client.get<RepoStats>(`/repos/${id}/stats`);
+    return data;
+  },
+
+  getFileDependencyGraph: async (id: string): Promise<DependencyGraph> => {
+    const { data } = await client.get<DependencyGraph>(`/repos/${id}/graph/files`);
     return data;
   },
 
