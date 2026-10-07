@@ -19,6 +19,7 @@ from app.database import AsyncSessionLocal, get_db
 from app.models.repository import Repository
 from app.models.source_file import SourceFile
 from app.services.indexing_service import IndexingService
+from app.services.graph_service import DependencyGraphService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
@@ -199,3 +200,24 @@ async def list_repository_files(
     stmt = select(SourceFile).where(SourceFile.repository_id == repo_id).order_by(SourceFile.file_path)
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.get("/{repo_id}/graph/files")
+async def get_file_dependency_graph(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return the repository's resolved file-level import dependency graph."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repo = repo_result.scalar_one_or_none()
+    if not repo:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Repository {repo_id} not found",
+        )
+    if repo.status != "ready":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Repository must finish indexing before its dependency graph is available.",
+        )
+    return await DependencyGraphService().build_file_graph(repo_id, db)
