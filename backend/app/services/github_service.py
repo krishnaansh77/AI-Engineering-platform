@@ -54,6 +54,8 @@ MAX_FILE_SIZE = 512_000  # 512 KB
 class GitHubService:
     """Handles GitHub repository cloning, updating, and file discovery."""
 
+    SUPPORTED_EXTENSIONS = SUPPORTED_EXTENSIONS
+
     def clone_repository(
         self,
         github_url: str,

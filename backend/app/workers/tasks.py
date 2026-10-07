@@ -4,7 +4,7 @@ import logging
 import uuid
 from typing import List
 
-from app.database import AsyncSessionLocal
+from app.database import AsyncSessionLocal, engine
 from app.services.indexing_service import IndexingService
 from app.workers.celery_app import celery_app
 
@@ -17,9 +17,16 @@ def index_repository_task(repo_id_str: str) -> None:
     logger.info("Starting background indexing task for repository %s", repo_id_str)
 
     async def _run() -> None:
-        async with AsyncSessionLocal() as session:
-            service = IndexingService()
-            await service.index_repository(uuid.UUID(repo_id_str), session)
+        try:
+            async with AsyncSessionLocal() as session:
+                service = IndexingService()
+                await service.index_repository(uuid.UUID(repo_id_str), session)
+        finally:
+            # Celery prefork workers execute each task with asyncio.run(),
+            # creating a fresh event loop. Dispose the asyncpg pool before
+            # that loop closes so the next task cannot reuse loop-bound
+            # connections.
+            await engine.dispose()
 
     asyncio.run(_run())
 
@@ -34,8 +41,11 @@ def reindex_files_task(repo_id_str: str, file_paths: List[str]) -> None:
     )
 
     async def _run() -> None:
-        async with AsyncSessionLocal() as session:
-            service = IndexingService()
-            await service.reindex_files(uuid.UUID(repo_id_str), file_paths, session)
+        try:
+            async with AsyncSessionLocal() as session:
+                service = IndexingService()
+                await service.reindex_files(uuid.UUID(repo_id_str), file_paths, session)
+        finally:
+            await engine.dispose()
 
     asyncio.run(_run())
