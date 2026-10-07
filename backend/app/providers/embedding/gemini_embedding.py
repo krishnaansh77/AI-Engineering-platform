@@ -14,8 +14,8 @@ _BATCH_SIZE = 100  # Google embedding API limit per batch
 class GeminiEmbeddingProvider(EmbeddingProvider):
     """Embedding provider using Google's text-embedding-004 model.
 
-    Supports up to 768-dimensional embeddings. We truncate/pad to match
-    the configured EMBEDDING_DIMENSION (default 768 for Gemini embeddings).
+    Supports configurable Gemini embedding dimensions. We truncate/pad to
+    match the configured EMBEDDING_DIMENSION.
     """
 
     def __init__(self) -> None:
@@ -42,7 +42,7 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
                 model=self._model,
                 content=text,
                 task_type="retrieval_document",
-                output_dimensionality=min(self._dimension, 768),
+                output_dimensionality=self._dimension,
             )
             vec = response["embedding"]
             # Pad or truncate to match configured dimension
