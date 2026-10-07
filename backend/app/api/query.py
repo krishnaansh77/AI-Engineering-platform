@@ -60,11 +60,21 @@ async def query_repository(
     )
 
     # Generate answer with citations
-    query_answer = await llm_service.answer_query(
-        query=payload.question,
-        retrieved_chunks=retrieved_chunks,
-        repo_name=repo.full_name,
-    )
+    try:
+        query_answer = await llm_service.answer_query(
+            query=payload.question,
+            retrieved_chunks=retrieved_chunks,
+            repo_name=repo.full_name,
+        )
+    except Exception as exc:
+        logger.exception("LLM provider failed for repository %s", repo_id)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "The AI provider is temporarily unavailable or over quota. "
+                "Please retry later or check the configured provider limits."
+            ),
+        ) from exc
 
     citations = [
         CitationSchema(
