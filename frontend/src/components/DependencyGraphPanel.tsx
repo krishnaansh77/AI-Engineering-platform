@@ -12,6 +12,7 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
   const [graph, setGraph] = useState<DependencyGraph | null>(null);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [fileFilter, setFileFilter] = useState<"all" | "connected" | "isolated">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,11 +32,29 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
     };
   }, [repoId]);
 
+  const connectionCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    graph?.nodes.forEach((node) => counts.set(node.id, 0));
+    graph?.edges.forEach((edge) => {
+      counts.set(edge.source, (counts.get(edge.source) ?? 0) + 1);
+      counts.set(edge.target, (counts.get(edge.target) ?? 0) + 1);
+    });
+    return counts;
+  }, [graph]);
+
+  const connectedFileCount = useMemo(
+    () => Array.from(connectionCounts.values()).filter((count) => count > 0).length,
+    [connectionCounts]
+  );
+
   const filteredNodes = useMemo(() => {
     if (!graph) return [];
     const query = search.trim().toLowerCase();
-    return graph.nodes.filter((node) => !query || node.file_path.toLowerCase().includes(query));
-  }, [graph, search]);
+    return graph.nodes
+      .filter((node) => !query || node.file_path.toLowerCase().includes(query))
+      .filter((node) => fileFilter === "all" || (fileFilter === "connected" ? (connectionCounts.get(node.id) ?? 0) > 0 : (connectionCounts.get(node.id) ?? 0) === 0))
+      .sort((left, right) => (connectionCounts.get(right.id) ?? 0) - (connectionCounts.get(left.id) ?? 0));
+  }, [connectionCounts, fileFilter, graph, search]);
 
   const selected = graph?.nodes.find((node) => node.id === selectedFile);
   const imports = graph?.edges.filter((edge) => edge.source === selectedFile) ?? [];
@@ -70,17 +89,34 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
         </div>
       </div>
 
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <GraphMetric label="Connected" value={connectedFileCount} />
+        <GraphMetric label="Isolated" value={graph.node_count - connectedFileCount} />
+        <GraphMetric label="Avg links/file" value={graph.node_count ? (graph.edge_count * 2 / graph.node_count).toFixed(1) : "0"} />
+      </div>
+
       <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] gap-4">
         <div className="border border-slate-200 rounded-lg overflow-hidden">
-          <label className="flex items-center gap-2 px-3 py-2 border-b border-slate-200 text-slate-400">
-            <Search className="w-4 h-4" />
+          <div className="flex items-center gap-2 px-3 py-2 border-b border-slate-200">
+            <Search className="w-4 h-4 text-slate-400" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search files..."
               className="w-full text-sm text-slate-700 outline-none placeholder:text-slate-400"
             />
-          </label>
+          </div>
+          <div className="flex gap-1 p-2 border-b border-slate-100 bg-slate-50">
+            {(["all", "connected", "isolated"] as const).map((filter) => (
+              <button
+                key={filter}
+                onClick={() => setFileFilter(filter)}
+                className={`px-2 py-1 rounded text-[11px] capitalize ${fileFilter === filter ? "bg-white text-sky-700 shadow-sm font-medium" : "text-slate-500 hover:text-slate-700"}`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
           <div className="max-h-64 overflow-y-auto">
             {filteredNodes.map((node) => (
               <button
@@ -91,7 +127,8 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
                 }`}
                 title={node.file_path}
               >
-                {node.file_path}
+                <span className="block truncate">{node.file_path}</span>
+                <span className="block text-[10px] text-slate-400 mt-0.5">{connectionCounts.get(node.id) ?? 0} connections</span>
               </button>
             ))}
             {filteredNodes.length === 0 && <p className="p-3 text-xs text-slate-500">No matching files.</p>}
@@ -109,6 +146,15 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
         </div>
       </div>
     </section>
+  );
+}
+
+function GraphMetric({ label, value }: { label: string; value: number | string }) {
+  return (
+    <div className="rounded-lg bg-slate-50 border border-slate-100 px-3 py-2">
+      <p className="text-base font-semibold text-slate-800">{value}</p>
+      <p className="text-[11px] text-slate-500">{label}</p>
+    </div>
   );
 }
 
