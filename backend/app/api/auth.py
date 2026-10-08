@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceCreate, WorkspaceUpdate, WorkspaceInvitationCreate, WorkspaceInvitationResponse, WorkspaceMemberResponse
+from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceCreate, WorkspaceUpdate, WorkspaceInvitationCreate, WorkspaceInvitationResponse, WorkspaceMemberResponse, WorkspaceMemberUpdate
 from app.database import get_db
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
@@ -175,6 +175,34 @@ async def list_members(workspace_id: uuid.UUID, user: User = Depends(get_current
     await _require_workspace_admin(workspace_id, user, db)
     rows = await db.execute(select(WorkspaceMember, User.email).join(User, User.id == WorkspaceMember.user_id).where(WorkspaceMember.workspace_id == workspace_id).order_by(WorkspaceMember.created_at))
     return [WorkspaceMemberResponse(user_id=membership.user_id, email=email, role=membership.role, created_at=membership.created_at) for membership, email in rows.all()]
+
+
+@router.patch("/workspaces/{workspace_id}/members/{member_id}", response_model=WorkspaceMemberResponse)
+async def update_member(workspace_id: uuid.UUID, member_id: uuid.UUID, payload: WorkspaceMemberUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> WorkspaceMemberResponse:
+    actor = await _require_workspace_admin(workspace_id, user, db)
+    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == member_id))
+    if not membership:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace member not found.")
+    if membership.role == "owner" or (actor.role == "admin" and membership.role == "admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the workspace owner can change this member.")
+    membership.role = payload.role
+    await db.commit()
+    member = await db.get(User, member_id)
+    return WorkspaceMemberResponse(user_id=membership.user_id, email=member.email, role=membership.role, created_at=membership.created_at)
+
+
+@router.delete("/workspaces/{workspace_id}/members/{member_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def remove_member(workspace_id: uuid.UUID, member_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> None:
+    actor = await _require_workspace_admin(workspace_id, user, db)
+    if member_id == user.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="You cannot remove yourself from a workspace.")
+    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == member_id))
+    if not membership:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace member not found.")
+    if membership.role == "owner" or (actor.role == "admin" and membership.role == "admin"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only the workspace owner can remove this member.")
+    await db.delete(membership)
+    await db.commit()
 
 
 @router.post("/invitations/accept", response_model=WorkspaceResponse)

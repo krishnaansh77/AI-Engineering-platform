@@ -401,6 +401,15 @@ export const api = {
     return data;
   },
 
+  updateWorkspaceMember: async (workspaceId: string, memberId: string, role: string): Promise<WorkspaceMember> => {
+    const { data } = await client.patch<WorkspaceMember>(`/auth/workspaces/${workspaceId}/members/${memberId}`, { role });
+    return data;
+  },
+
+  removeWorkspaceMember: async (workspaceId: string, memberId: string): Promise<void> => {
+    await client.delete(`/auth/workspaces/${workspaceId}/members/${memberId}`);
+  },
+
   // Repositories
   connectRepo: async (payload: ConnectRepoRequest): Promise<Repository> => {
     const { data } = await client.post<Repository>("/repos/connect", payload);

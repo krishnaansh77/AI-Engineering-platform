@@ -72,6 +72,10 @@ class WorkspaceMemberResponse(BaseModel):
     created_at: datetime
 
 
+class WorkspaceMemberUpdate(BaseModel):
+    role: Literal["member", "admin"]
+
+
 class RepositoryResponse(BaseModel):
     """Public representation of a connected repository."""
     model_config = ConfigDict(from_attributes=True)
