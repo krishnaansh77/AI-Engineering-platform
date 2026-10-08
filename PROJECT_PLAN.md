@@ -80,6 +80,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Expanded starter RAG benchmark to 10 repository questions with strict benchmark-file validation and runner tests
 - Added expected-file hit rate to RAG evaluation summaries and the evaluation dashboard
 - Added separate lower rate limits for provider/GitHub/scan-heavy endpoints
+- Added ASGI middleware tests for request-size rejection, route-specific throttling, and Redis fail-open behavior
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -122,7 +123,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 ### Phase 3B — Quality and safety
 
 1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis — core GitHub, parser, graph, cache, schema, and PR-analysis boundaries are covered; database-backed endpoint tests remain.
-2. Add API rate limits and request-size limits where appropriate — baseline and endpoint-specific protection complete; broader middleware integration tests remain.
+2. Add API rate limits and request-size limits where appropriate — baseline, endpoint-specific protection, and ASGI middleware tests complete.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
 5. Improve accessibility and responsive behavior across the repository detail page — baseline labels, focus states, live regions, and responsive Phase 3 controls complete; a full WCAG audit remains future work.
