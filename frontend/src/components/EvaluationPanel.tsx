@@ -31,7 +31,8 @@ export default function EvaluationPanel({ repoId }: { repoId: string }) {
         <div className="flex justify-end"><button type="submit" disabled={loading || !benchmarks.trim()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50">{loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}Run benchmark</button></div>
       </form>
       {error && <p className="text-xs text-red-600 mt-3">{error}</p>}
-      {result && <div className="mt-4 grid grid-cols-3 gap-2"><Metric label="Recall@K" value={result.summary.recall_at_k.toFixed(2)} /><Metric label="MRR" value={result.summary.mrr.toFixed(2)} /><Metric label="Cases" value={result.summary.case_count} /></div>}
+      {result && <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2"><Metric label="Recall@K" value={result.summary.recall_at_k.toFixed(2)} /><Metric label="MRR" value={result.summary.mrr.toFixed(2)} /><Metric label="Avg latency" value={`${result.summary.average_retrieval_latency_ms.toFixed(0)} ms`} /><Metric label="Cases" value={result.summary.case_count} /></div>}
+      {result && <div className="mt-3 space-y-1">{result.cases.map((item) => <div key={item.question} className="text-xs text-slate-600 flex justify-between gap-3"><span className="truncate">{item.question}</span><span className="shrink-0">Recall {item.recall.toFixed(2)} · MRR {item.reciprocal_rank.toFixed(2)}</span></div>)}</div>}
     </section>
   );
 }

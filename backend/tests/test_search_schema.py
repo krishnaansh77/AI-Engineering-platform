@@ -23,3 +23,10 @@ class TestSearchSchema(unittest.TestCase):
         self.assertEqual(score["recall"], 1.0)
         self.assertEqual(score["reciprocal_rank"], 0.5)
         self.assertEqual(aggregate_scores([score])["mrr"], 0.5)
+
+    def test_aggregate_scores_includes_latency_when_available(self):
+        result = aggregate_scores([
+            {"recall": 1.0, "reciprocal_rank": 1.0, "retrieval_latency_ms": 20.0},
+            {"recall": 0.0, "reciprocal_rank": 0.0, "retrieval_latency_ms": 40.0},
+        ])
+        self.assertEqual(result["average_retrieval_latency_ms"], 30.0)

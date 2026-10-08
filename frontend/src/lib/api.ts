@@ -212,8 +212,8 @@ export interface IssueAnalysis {
 }
 
 export interface EvaluationRun {
-  summary: { recall_at_k: number; mrr: number; case_count: number };
-  cases: Array<{ question: string; expected_files: string[]; retrieved_files: string[]; recall: number; reciprocal_rank: number; matched_files: string[] }>;
+  summary: { recall_at_k: number; mrr: number; average_retrieval_latency_ms: number; case_count: number };
+  cases: Array<{ question: string; expected_files: string[]; retrieved_files: string[]; retrieval_latency_ms: number; recall: number; reciprocal_rank: number; matched_files: string[] }>;
 }
 
 export interface DependencyGraphNode {

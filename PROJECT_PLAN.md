@@ -54,6 +54,9 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - GitHub issue listing and issue-to-code relevance analysis
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
+- Per-case and average retrieval latency in evaluation results
+- Reviewable starter benchmark template at `docs/rag-benchmark.example.json`
+- CI-friendly benchmark runner at `backend/scripts/run_rag_benchmark.py` with optional quality thresholds
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -87,9 +90,9 @@ Phase 3 is not finished yet. The remaining work is listed below.
    - Add provider-cost protection and a maximum generation scope.
 
 4. **RAG evaluation expansion**
-   - Add a committed benchmark template with 10–20 representative questions.
-   - Track Recall@K, MRR, citation hit rate, answer helpful rate, and latency.
-   - Add a repeatable evaluation command for CI.
+   - Expand the starter benchmark to 10–20 representative questions for the target repositories.
+   - Add answer-level citation hit rate and helpful-rate reporting; retrieval evaluation currently measures Recall@K, MRR, and latency.
+   - Run the benchmark runner in CI against a seeded test repository.
 
 ### Phase 3B — Quality and safety
 
@@ -134,6 +137,7 @@ docker compose exec -T redis redis-cli ping
 Expected baseline at the time this plan was written:
 
 - Backend tests: `24 passed`
+- After the evaluation milestone: `25 passed`
 - Frontend build: successful
 - Redis: `PONG`
 - Backend health: `database=healthy`

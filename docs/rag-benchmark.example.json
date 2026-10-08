@@ -1,0 +1,12 @@
+{
+  "name": "AI Engineering Platform starter benchmark",
+  "description": "Copy this file to a local benchmark and replace expected files with paths from the indexed repository.",
+  "top_k": 5,
+  "cases": [
+    {"question": "How is the database initialized?", "expected_files": ["backend/app/database.py"]},
+    {"question": "Where are repository API routes defined?", "expected_files": ["backend/app/api/repos.py"]},
+    {"question": "How does hybrid retrieval combine search results?", "expected_files": ["backend/app/services/retrieval_service.py"]},
+    {"question": "Where are background indexing tasks configured?", "expected_files": ["backend/app/workers/tasks.py", "backend/app/workers/celery_app.py"]},
+    {"question": "How are retrieval evaluation metrics calculated?", "expected_files": ["backend/app/services/evaluation_service.py", "backend/app/api/query.py"]}
+  ]
+}

@@ -210,6 +210,7 @@ async def evaluate_repository_retrieval(
 
     case_results = []
     for case in payload.cases:
+        retrieval_started = time.perf_counter()
         chunks = await RetrievalService().retrieve(
             query=case.question,
             repo_id=repo_id,
@@ -217,8 +218,9 @@ async def evaluate_repository_retrieval(
             top_k=settings.RETRIEVAL_TOP_K,
             final_k=payload.top_k,
         )
+        retrieval_latency_ms = round((time.perf_counter() - retrieval_started) * 1000, 2)
         metrics = score_retrieval(case.expected_files, [chunk.file_path for chunk in chunks])
-        case_results.append({"question": case.question, "expected_files": case.expected_files, "retrieved_files": [chunk.file_path for chunk in chunks], **metrics})
+        case_results.append({"question": case.question, "expected_files": case.expected_files, "retrieved_files": [chunk.file_path for chunk in chunks], "retrieval_latency_ms": retrieval_latency_ms, **metrics})
     return {"summary": aggregate_scores(case_results), "cases": case_results}
 
 
