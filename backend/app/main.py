@@ -3,6 +3,7 @@ import logging
 import time
 import asyncio
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
@@ -31,7 +32,9 @@ EXPECTED_MIGRATION_REVISION = "007_query_token_usage"
 
 def _upgrade_database() -> None:
     """Run checked-in migrations in a worker thread during service startup."""
-    alembic_config = AlembicConfig("alembic.ini")
+    backend_root = Path(__file__).resolve().parents[1]
+    alembic_config = AlembicConfig(str(backend_root / "alembic.ini"))
+    alembic_config.set_main_option("script_location", str(backend_root / "alembic"))
     command.upgrade(alembic_config, "head")
 
 
@@ -91,7 +94,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await create_all_tables()
         logger.info("Database tables and pgvector extension initialized successfully.")
     except Exception as e:
-        logger.warning("Could not auto-create database tables on startup: %s", e)
+        logger.exception("Could not apply database migrations or initialize tables on startup: %s", e)
     yield
     logger.info("Shutting down AI Software Engineering Intelligence Platform backend...")
     await engine.dispose()
@@ -168,6 +171,7 @@ async def health_check() -> dict:
         "status": "healthy" if db_status == "healthy" and redis_status == "healthy" and migration_revision == EXPECTED_MIGRATION_REVISION else "degraded",
         "database": db_status,
         "redis": redis_status,
+        "auto_migrate_on_startup": settings.AUTO_MIGRATE_ON_STARTUP,
         "migration": {
             "current_revision": migration_revision,
             "expected_revision": EXPECTED_MIGRATION_REVISION,
