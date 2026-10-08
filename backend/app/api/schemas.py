@@ -75,6 +75,7 @@ class QueryResponse(BaseModel):
     citations: List[CitationSchema]
     model: str
     retrieval_count: int
+    cached: bool = False
 
 
 class FeedbackRequest(BaseModel):

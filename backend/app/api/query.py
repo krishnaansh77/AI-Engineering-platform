@@ -1,12 +1,14 @@
 """Q&A query API endpoint using hybrid retrieval and LLM response generation with citations."""
 import logging
 import hashlib
+import json
 import time
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis import asyncio as redis
 
 from app.api.schemas import CitationSchema, FeedbackRequest, QueryRequest, QueryResponse
 from app.config import settings
@@ -16,9 +18,32 @@ from app.models.query_feedback import QueryFeedback
 from app.models.query_event import QueryEvent
 from app.services.llm_service import LLMService
 from app.services.retrieval_service import RetrievalService
+from app.services.query_cache import build_query_cache_key
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["query"])
+
+
+async def _read_cached_query(key: str) -> dict | None:
+    client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        cached = await client.get(key)
+        return json.loads(cached) if cached else None
+    except Exception as exc:
+        logger.warning("Query cache read failed: %s", exc)
+        return None
+    finally:
+        await client.aclose()
+
+
+async def _write_cached_query(key: str, payload: dict) -> None:
+    client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        await client.setex(key, settings.QUERY_CACHE_TTL_SECONDS, json.dumps(payload))
+    except Exception as exc:
+        logger.warning("Query cache write failed: %s", exc)
+    finally:
+        await client.aclose()
 
 
 @router.post("/repos/{repo_id}/query", response_model=QueryResponse)
@@ -50,6 +75,16 @@ async def query_repository(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Repository indexing failed with error: {repo.error_message}",
         )
+
+    cache_key = build_query_cache_key(
+        repo.id,
+        repo.last_indexed_at.isoformat() if repo.last_indexed_at else None,
+        payload.question,
+        payload.top_k,
+    )
+    cached_response = await _read_cached_query(cache_key)
+    if cached_response:
+        return QueryResponse(**cached_response, cached=True)
 
     query_started = time.perf_counter()
     retrieval_started = time.perf_counter()
@@ -109,12 +144,14 @@ async def query_repository(
         for c in query_answer.citations
     ]
 
-    return QueryResponse(
+    response = QueryResponse(
         answer=query_answer.answer,
         citations=citations,
         model=query_answer.model,
         retrieval_count=len(retrieved_chunks),
     )
+    await _write_cached_query(cache_key, response.model_dump())
+    return response
 
 
 @router.post("/repos/{repo_id}/feedback", status_code=status.HTTP_201_CREATED)

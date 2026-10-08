@@ -95,6 +95,7 @@ export default function ChatMessageComponent({ message, onFeedback }: ChatMessag
 
         {!isUser && !message.isLoading && message.question && (
           <div className="flex items-center gap-1 text-xs text-slate-400">
+            {message.cached && <span className="mr-2 text-sky-600">Cached answer</span>}
             <span>Was this helpful?</span>
             <button
               onClick={() => onFeedback?.(message.id, "helpful")}

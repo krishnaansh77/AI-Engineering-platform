@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     RETRIEVAL_TOP_K: int = 20
     RETRIEVAL_FINAL_K: int = 5
     RERANKER_ENABLED: bool = False
+    QUERY_CACHE_TTL_SECONDS: int = 900
 
     # ── Storage ───────────────────────────────────────────────────────────────
     REPOS_CLONE_DIR: str = "/repos"

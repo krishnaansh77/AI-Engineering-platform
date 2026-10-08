@@ -47,6 +47,7 @@ export interface QueryResponse {
   citations: Citation[];
   model: string;
   retrieval_count: number;
+  cached?: boolean;
 }
 
 export type FeedbackRating = "helpful" | "not_helpful";
@@ -148,6 +149,7 @@ export interface ChatMessage {
   model?: string;
   retrievalCount?: number;
   feedback?: FeedbackRating;
+  cached?: boolean;
 }
 
 export interface ConnectRepoRequest {
