@@ -98,12 +98,14 @@ export default function ChatMessageComponent({ message, onFeedback }: ChatMessag
             {message.cached && <span className="mr-2 text-sky-600">Cached answer</span>}
             <span>Was this helpful?</span>
             <button
+              type="button"
               onClick={() => onFeedback?.(message.id, "helpful")}
               disabled={Boolean(message.feedback)}
               className={cn("p-1 rounded hover:bg-emerald-50 hover:text-emerald-600 disabled:cursor-default", message.feedback === "helpful" && "bg-emerald-50 text-emerald-600")}
               aria-label="Mark answer helpful"
             ><ThumbsUp className="w-3.5 h-3.5" /></button>
             <button
+              type="button"
               onClick={() => onFeedback?.(message.id, "not_helpful")}
               disabled={Boolean(message.feedback)}
               className={cn("p-1 rounded hover:bg-red-50 hover:text-red-600 disabled:cursor-default", message.feedback === "not_helpful" && "bg-red-50 text-red-600")}
