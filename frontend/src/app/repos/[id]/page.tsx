@@ -22,6 +22,7 @@ import GitHistoryPanel from "@/components/GitHistoryPanel";
 import ArchitecturePanel from "@/components/ArchitecturePanel";
 import TestIntelligencePanel from "@/components/TestIntelligencePanel";
 import FeedbackSummaryPanel from "@/components/FeedbackSummaryPanel";
+import QueryMetricsPanel from "@/components/QueryMetricsPanel";
 import { formatRelativeTime, getLanguageIcon } from "@/lib/utils";
 
 export default function RepoDetailPage() {
@@ -235,6 +236,8 @@ export default function RepoDetailPage() {
       {repo.status === "ready" && <TestIntelligencePanel repoId={id} />}
 
       {repo.status === "ready" && <FeedbackSummaryPanel repoId={id} />}
+
+      {repo.status === "ready" && <QueryMetricsPanel repoId={id} />}
 
       {repo.status === "ready" && <GitHistoryPanel repoId={id} />}
 

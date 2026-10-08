@@ -102,6 +102,14 @@ export interface FeedbackSummary {
   average_retrieval_count: number;
 }
 
+export interface QueryMetrics {
+  total_queries: number;
+  average_retrieval_latency_ms: number;
+  average_llm_latency_ms: number;
+  average_total_latency_ms: number;
+  average_retrieval_count: number;
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -221,6 +229,11 @@ export const api = {
 
   getFeedbackSummary: async (repoId: string): Promise<FeedbackSummary> => {
     const { data } = await client.get<FeedbackSummary>(`/repos/${repoId}/feedback/summary`);
+    return data;
+  },
+
+  getQueryMetrics: async (repoId: string): Promise<QueryMetrics> => {
+    const { data } = await client.get<QueryMetrics>(`/repos/${repoId}/query-metrics`);
     return data;
   },
 };
