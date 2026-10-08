@@ -60,3 +60,58 @@ jobs:
           python-version: "3.11"
       - name: Validate benchmark cases
         run: python backend/scripts/run_rag_benchmark.py --validate-only
+
+  benchmark:
+    name: Run seeded RAG benchmark
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: aise
+          POSTGRES_PASSWORD: aise_secret
+          POSTGRES_DB: aise_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aise -d aise_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql+asyncpg://aise:aise_secret@localhost:5432/aise_db
+      REDIS_URL: redis://localhost:6379/0
+      LLM_PROVIDER: mock
+      EMBEDDING_PROVIDER: mock
+      EMBEDDING_DIMENSION: 768
+      API_RATE_LIMIT_PER_MINUTE: 10000
+      API_EXPENSIVE_RATE_LIMIT_PER_MINUTE: 10000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install backend dependencies
+        run: python -m pip install -r backend/requirements.txt
+      - name: Seed benchmark repository
+        run: PYTHONPATH=backend python backend/scripts/seed_rag_benchmark.py
+      - name: Start API
+        run: PYTHONPATH=backend nohup uvicorn app.main:app --host 127.0.0.1 --port 8000 > /tmp/aise-backend.log 2>&1 &
+      - name: Wait for API
+        run: python backend/scripts/wait_for_http.py --url http://127.0.0.1:8000/health
+      - name: Run seeded retrieval benchmark
+        run: >-
+          PYTHONPATH=backend python backend/scripts/run_rag_benchmark.py
+          --repo-id 11111111-1111-1111-1111-111111111111
+          --base-url http://127.0.0.1:8000
+          --min-recall 0.5
+          --min-mrr 0.2

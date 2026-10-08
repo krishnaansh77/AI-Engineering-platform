@@ -10,11 +10,11 @@ from app.providers.embedding.base import EmbeddingProvider
 class MockEmbeddingProvider(EmbeddingProvider):
     """Local, offline embedding generator using feature hashing.
 
-    Produces normalized 1536-dimensional vectors with zero network calls,
+    Produces normalized configured-dimension vectors with zero network calls,
     enabling full testability of the pgvector pipeline without API fees.
     """
 
-    def __init__(self, dimension: int = 1536) -> None:
+    def __init__(self, dimension: int | None = None) -> None:
         self._dimension = dimension or settings.EMBEDDING_DIMENSION
 
     def get_dimension(self) -> int:
