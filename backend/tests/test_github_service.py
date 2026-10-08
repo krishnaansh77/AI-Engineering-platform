@@ -102,6 +102,30 @@ class TestGitHubService(unittest.TestCase):
         FakeClient.get.assert_awaited_once()
         self.assertEqual(FakeClient.get.await_args.kwargs["params"]["state"], "all")
 
+    def test_list_issues_retries_transient_server_error(self):
+        import asyncio
+
+        retry_response = unittest.mock.Mock(status_code=503)
+        retry_response.raise_for_status = unittest.mock.Mock(side_effect=Exception("temporary"))
+        success_response = unittest.mock.Mock(status_code=200)
+        success_response.raise_for_status = unittest.mock.Mock()
+        success_response.json.return_value = []
+
+        class FakeClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_):
+                return None
+
+            get = AsyncMock(side_effect=[retry_response, success_response])
+
+        with patch("app.services.github_service.httpx.AsyncClient", return_value=FakeClient()), patch("app.services.github_service.asyncio.sleep", new=AsyncMock()):
+            issues = asyncio.run(self.service.list_issues("https://github.com/acme/demo"))
+
+        self.assertEqual(issues, [])
+        self.assertEqual(FakeClient.get.await_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

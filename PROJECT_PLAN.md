@@ -58,6 +58,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Persisted citation counts for query events and feedback, with citation coverage and average citation metrics in quality reporting
 - Best-effort Redis-backed API rate limiting and configurable request-size protection with structured `429` and `413` error payloads
 - Standardized structured error details for provider outages, GitHub issue failures, and unavailable PR refs, with frontend parsing support
+- Expanded boundary tests for GitHub retries/filtering, parser fallbacks, schema errors, dependency graph behavior, caching keys, and PR diff analysis
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
 - Per-case and average retrieval latency in evaluation results
@@ -103,7 +104,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 
 ### Phase 3B — Quality and safety
 
-1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis.
+1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis — core GitHub, parser, graph, cache, schema, and PR-analysis boundaries are covered; database-backed endpoint tests remain.
 2. Add API rate limits and request-size limits where appropriate — baseline protection complete; endpoint-specific limits and broader tests remain.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic.
@@ -147,6 +148,7 @@ Expected baseline at the time this plan was written:
 - After the evaluation milestone: `25 passed`
 - After the PR comparison milestone: `26 passed`
 - After the issue intelligence milestone: `28 passed`
+- After the boundary-test milestone: `32 passed, 1 skipped` (Tree-sitter-specific test is dependency-aware)
 - Frontend build: successful
 - Redis: `PONG`
 - Backend health: `database=healthy`
