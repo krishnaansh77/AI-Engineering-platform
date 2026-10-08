@@ -1,6 +1,9 @@
-"""Google Gemini LLM provider using the google-generativeai SDK."""
+"""Google Gemini LLM provider using the current Google GenAI SDK."""
 import logging
 from typing import List, Optional
+
+from google import genai
+from google.genai import types
 
 from app.config import settings
 from app.providers.llm.base import LLMMessage, LLMProvider, LLMResponse
@@ -9,16 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiProvider(LLMProvider):
-    """LLM provider backed by Google's Gemini API (gemini-2.5-flash / gemini-2.5-pro)."""
+    """LLM provider backed by Google's Gemini API."""
 
     def __init__(self) -> None:
-        import google.generativeai as genai
-
-        genai.configure(api_key=settings.GOOGLE_API_KEY)
-        self._model_name = settings.GEMINI_LLM_MODEL
+        self._client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+        # The new SDK expects the bare model ID, while older deployments may
+        # still have a ``models/`` prefix in their environment variable.
+        self._model_name = settings.GEMINI_LLM_MODEL.removeprefix("models/")
         self._temperature = settings.OPENAI_LLM_TEMPERATURE  # Reuse temperature setting
         self._max_tokens = settings.OPENAI_LLM_MAX_TOKENS
-        self._genai = genai
 
     def get_provider_name(self) -> str:
         return f"google/{self._model_name}"
@@ -32,45 +34,36 @@ class GeminiProvider(LLMProvider):
         """Send a list of messages to Gemini and return the response."""
         import asyncio
 
-        model = self._genai.GenerativeModel(
-            model_name=self._model_name,
-            generation_config=self._genai.GenerationConfig(
-                temperature=temperature if temperature is not None else self._temperature,
-                max_output_tokens=max_tokens if max_tokens is not None else self._max_tokens,
-            ),
-        )
-
-        # Convert messages to Gemini chat format
-        # Gemini uses "user" and "model" roles
+        # Convert our provider-neutral messages to the GenAI content format.
+        # Gemini uses "user" and "model" roles (rather than "assistant").
+        contents = []
         system_prompt = None
-        chat_history = []
 
         for msg in messages:
             if msg.role == "system":
                 system_prompt = msg.content
-            elif msg.role == "user":
-                if system_prompt and not chat_history:
-                    # Prepend system prompt to first user message
-                    chat_history.append({
-                        "role": "user",
-                        "parts": [f"{system_prompt}\n\n{msg.content}"],
-                    })
-                    system_prompt = None
-                else:
-                    chat_history.append({"role": "user", "parts": [msg.content]})
-            elif msg.role == "assistant":
-                chat_history.append({"role": "model", "parts": [msg.content]})
+                continue
+            role = "model" if msg.role == "assistant" else "user"
+            text = msg.content
+            if system_prompt and not contents:
+                text = f"{system_prompt}\n\n{text}"
+                system_prompt = None
+            contents.append(types.Content(role=role, parts=[types.Part.from_text(text=text)]))
 
-        if not chat_history:
+        if not contents:
             raise ValueError("No user messages provided")
 
-        # Run synchronous Gemini API call in thread pool to keep async behavior
-        last_message = chat_history[-1]["parts"][0]
-        history = chat_history[:-1]
+        config = types.GenerateContentConfig(
+            temperature=temperature if temperature is not None else self._temperature,
+            max_output_tokens=max_tokens if max_tokens is not None else self._max_tokens,
+        )
 
         def _call_gemini():
-            chat = model.start_chat(history=history)
-            return chat.send_message(last_message)
+            return self._client.models.generate_content(
+                model=self._model_name,
+                contents=contents,
+                config=config,
+            )
 
         try:
             response = await asyncio.get_event_loop().run_in_executor(None, _call_gemini)

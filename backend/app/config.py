@@ -36,7 +36,7 @@ class Settings(BaseSettings):
 
     # Google Gemini
     GOOGLE_API_KEY: str = ""
-    GEMINI_LLM_MODEL: str = "gemini-2.5-flash"
+    GEMINI_LLM_MODEL: str = "gemini-3.8-flash"
 
     # Anthropic (Phase 4)
     ANTHROPIC_API_KEY: str = ""

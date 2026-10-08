@@ -1,7 +1,10 @@
-"""Google Gemini embedding provider using gemini-embedding-001."""
+"""Google Gemini embedding provider using the current Google GenAI SDK."""
 import asyncio
 import logging
 from typing import List
+
+from google import genai
+from google.genai import types
 
 from app.config import settings
 from app.providers.embedding.base import EmbeddingProvider
@@ -19,11 +22,8 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
     """
 
     def __init__(self) -> None:
-        import google.generativeai as genai
-
-        genai.configure(api_key=settings.GOOGLE_API_KEY)
-        self._genai = genai
-        self._model = settings.GEMINI_EMBEDDING_MODEL  # "models/gemini-embedding-001"
+        self._client = genai.Client(api_key=settings.GOOGLE_API_KEY)
+        self._model = settings.GEMINI_EMBEDDING_MODEL.removeprefix("models/")
         self._dimension = settings.EMBEDDING_DIMENSION
 
     def get_dimension(self) -> int:
@@ -39,18 +39,15 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         free tier, whose request quota is much tighter than its token quota.
         """
         contents = [text if text and text.strip() else " " for text in texts]
-        response = self._genai.embed_content(
+        response = self._client.models.embed_content(
             model=self._model,
-            content=contents,
-            task_type="retrieval_document",
-            output_dimensionality=self._dimension,
+            contents=contents,
+            config=types.EmbedContentConfig(
+                task_type="RETRIEVAL_DOCUMENT",
+                output_dimensionality=self._dimension,
+            ),
         )
-        raw_embeddings = response["embedding"]
-        embeddings = (
-            [raw_embeddings]
-            if raw_embeddings and isinstance(raw_embeddings[0], (int, float))
-            else raw_embeddings
-        )
+        embeddings = [embedding.values for embedding in response.embeddings]
         if len(embeddings) != len(contents):
             raise ValueError(
                 f"Gemini returned {len(embeddings)} embeddings for {len(contents)} inputs"
