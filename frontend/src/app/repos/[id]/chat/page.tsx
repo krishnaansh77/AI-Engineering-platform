@@ -10,7 +10,7 @@ import {
   MessageSquare,
   Sparkles,
 } from "lucide-react";
-import { api, ChatMessage, QueryResponse, Repository, getErrorMessage } from "@/lib/api";
+import { api, ChatMessage, FeedbackRating, QueryResponse, Repository, getErrorMessage } from "@/lib/api";
 import { generateId } from "@/lib/utils";
 import ChatMessageComponent from "@/components/ChatMessage";
 
@@ -76,6 +76,9 @@ export default function ChatPage() {
                   ...m,
                   content: response.answer,
                   citations: response.citations,
+                  question: question.trim(),
+                  model: response.model,
+                  retrievalCount: response.retrieval_count,
                   isLoading: false,
                 }
               : m
@@ -102,6 +105,22 @@ export default function ChatPage() {
     },
     [id, isLoading]
   );
+
+  const handleFeedback = async (messageId: string, rating: FeedbackRating) => {
+    const message = messages.find((item) => item.id === messageId);
+    if (!message || message.feedback || !message.question || !message.model) return;
+    try {
+      await api.submitFeedback(id, {
+        question: message.question,
+        rating,
+        model: message.model,
+        retrieval_count: message.retrievalCount ?? 0,
+      });
+      setMessages((prev) => prev.map((item) => item.id === messageId ? { ...item, feedback: rating } : item));
+    } catch (e) {
+      setError(getErrorMessage(e));
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -177,7 +196,7 @@ export default function ChatPage() {
 
         {/* Chat messages */}
         {messages.map((message) => (
-          <ChatMessageComponent key={message.id} message={message} />
+          <ChatMessageComponent key={message.id} message={message} onFeedback={handleFeedback} />
         ))}
         <div ref={bottomRef} />
       </div>

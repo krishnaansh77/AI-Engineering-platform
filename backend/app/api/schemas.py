@@ -1,6 +1,6 @@
 """Pydantic schemas for API requests and responses."""
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Literal
 import uuid
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
@@ -75,3 +75,11 @@ class QueryResponse(BaseModel):
     citations: List[CitationSchema]
     model: str
     retrieval_count: int
+
+
+class FeedbackRequest(BaseModel):
+    """User rating for a generated repository answer."""
+    question: str = Field(..., min_length=1, max_length=10000)
+    rating: Literal["helpful", "not_helpful"]
+    model: str = Field(..., min_length=1, max_length=100)
+    retrieval_count: int = Field(0, ge=0, le=100)

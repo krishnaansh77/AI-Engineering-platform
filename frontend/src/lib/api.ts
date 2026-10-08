@@ -49,6 +49,8 @@ export interface QueryResponse {
   retrieval_count: number;
 }
 
+export type FeedbackRating = "helpful" | "not_helpful";
+
 export interface GitCommit {
   sha: string;
   short_sha: string;
@@ -126,6 +128,10 @@ export interface ChatMessage {
   citations?: Citation[];
   timestamp: Date;
   isLoading?: boolean;
+  question?: string;
+  model?: string;
+  retrievalCount?: number;
+  feedback?: FeedbackRating;
 }
 
 export interface ConnectRepoRequest {
@@ -196,6 +202,13 @@ export const api = {
       { question, top_k: topK }
     );
     return data;
+  },
+
+  submitFeedback: async (
+    repoId: string,
+    payload: { question: string; rating: FeedbackRating; model: string; retrieval_count: number }
+  ): Promise<void> => {
+    await client.post(`/repos/${repoId}/feedback`, payload);
   },
 };
 

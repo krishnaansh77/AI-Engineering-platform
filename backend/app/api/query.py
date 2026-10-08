@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.schemas import CitationSchema, QueryRequest, QueryResponse
+from app.api.schemas import CitationSchema, FeedbackRequest, QueryRequest, QueryResponse
 from app.config import settings
 from app.database import get_db
 from app.models.repository import Repository
+from app.models.query_feedback import QueryFeedback
 from app.services.llm_service import LLMService
 from app.services.retrieval_service import RetrievalService
 
@@ -93,3 +94,27 @@ async def query_repository(
         model=query_answer.model,
         retrieval_count=len(retrieved_chunks),
     )
+
+
+@router.post("/repos/{repo_id}/feedback", status_code=status.HTTP_201_CREATED)
+async def submit_query_feedback(
+    repo_id: uuid.UUID,
+    payload: FeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Store a user's helpful/not-helpful signal without storing generated code context."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repo = result.scalar_one_or_none()
+    if not repo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+
+    feedback = QueryFeedback(
+        repository_id=repo_id,
+        question=payload.question,
+        rating=payload.rating,
+        model=payload.model,
+        retrieval_count=payload.retrieval_count,
+    )
+    db.add(feedback)
+    await db.commit()
+    return {"id": str(feedback.id), "status": "recorded"}
