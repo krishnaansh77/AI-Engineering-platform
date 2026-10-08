@@ -211,6 +211,11 @@ export interface IssueAnalysis {
   relevant_files: Array<{ file_path: string; symbol_name: string | null; start_line: number; end_line: number; score: number }>;
 }
 
+export interface EvaluationRun {
+  summary: { recall_at_k: number; mrr: number; case_count: number };
+  cases: Array<{ question: string; expected_files: string[]; retrieved_files: string[]; recall: number; reciprocal_rank: number; matched_files: string[] }>;
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -388,6 +393,11 @@ export const api = {
 
   analyzeIssue: async (repoId: string, issueNumber: number): Promise<IssueAnalysis> => {
     const { data } = await client.get<IssueAnalysis>(`/repos/${repoId}/issues/${issueNumber}/analysis`);
+    return data;
+  },
+
+  evaluateRepo: async (repoId: string, question: string, expectedFiles: string[], topK = 5): Promise<EvaluationRun> => {
+    const { data } = await client.post<EvaluationRun>(`/repos/${repoId}/evaluate`, { cases: [{ question, expected_files: expectedFiles }], top_k: topK });
     return data;
   },
 };
