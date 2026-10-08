@@ -60,6 +60,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Standardized structured error details for provider outages, GitHub issue failures, and unavailable PR refs, with frontend parsing support
 - Expanded boundary tests for GitHub retries/filtering, parser fallbacks, schema errors, dependency graph behavior, caching keys, and PR diff analysis
 - Opt-in heuristic secret scan with redacted file/line findings and no automatic indexing-time execution
+- GitHub Actions CI for backend tests, frontend production builds, and repository hygiene checks without provider secrets
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
 - Per-case and average retrieval latency in evaluation results
@@ -110,6 +111,10 @@ Phase 3 is not finished yet. The remaining work is listed below.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
 5. Improve accessibility and responsive behavior across the repository detail page.
+
+### CI status
+
+The repository now has `.github/workflows/ci.yml`. It uses mock providers for backend tests, does not require Gemini or GitHub secrets, and runs on pushes to `master` and pull requests targeting `master`.
 
 ### Phase 4 — Production and advanced capabilities
 
