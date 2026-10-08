@@ -93,6 +93,16 @@ class SearchResponse(BaseModel):
     query: str
 
 
+class EvaluationCase(BaseModel):
+    question: str = Field(..., min_length=1, max_length=1000)
+    expected_files: List[str] = Field(..., min_length=1, max_length=20)
+
+
+class EvaluationRequest(BaseModel):
+    cases: List[EvaluationCase] = Field(..., min_length=1, max_length=50)
+    top_k: int = Field(5, ge=1, le=20)
+
+
 class FeedbackRequest(BaseModel):
     """User rating for a generated repository answer."""
     question: str = Field(..., min_length=1, max_length=10000)

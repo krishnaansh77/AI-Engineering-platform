@@ -10,7 +10,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis import asyncio as redis
 
-from app.api.schemas import CitationSchema, FeedbackRequest, QueryRequest, QueryResponse, SearchResponse, SearchResultSchema
+from app.api.schemas import CitationSchema, EvaluationRequest, FeedbackRequest, QueryRequest, QueryResponse, SearchResponse, SearchResultSchema
 from app.config import settings
 from app.database import get_db
 from app.models.repository import Repository
@@ -19,6 +19,7 @@ from app.models.query_event import QueryEvent
 from app.services.llm_service import LLMService
 from app.services.retrieval_service import RetrievalService
 from app.services.query_cache import build_query_cache_key
+from app.services.evaluation_service import aggregate_scores, score_retrieval
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["query"])
@@ -191,6 +192,34 @@ async def search_repository(
             for chunk in chunks
         ],
     )
+
+
+@router.post("/repos/{repo_id}/evaluate")
+async def evaluate_repository_retrieval(
+    repo_id: uuid.UUID,
+    payload: EvaluationRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Evaluate hybrid retrieval against expected file paths without generating answers."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repo = result.scalar_one_or_none()
+    if not repo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repo.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before evaluation is available.")
+
+    case_results = []
+    for case in payload.cases:
+        chunks = await RetrievalService().retrieve(
+            query=case.question,
+            repo_id=repo_id,
+            db=db,
+            top_k=settings.RETRIEVAL_TOP_K,
+            final_k=payload.top_k,
+        )
+        metrics = score_retrieval(case.expected_files, [chunk.file_path for chunk in chunks])
+        case_results.append({"question": case.question, "expected_files": case.expected_files, "retrieved_files": [chunk.file_path for chunk in chunks], **metrics})
+    return {"summary": aggregate_scores(case_results), "cases": case_results}
 
 
 @router.post("/repos/{repo_id}/feedback", status_code=status.HTTP_201_CREATED)

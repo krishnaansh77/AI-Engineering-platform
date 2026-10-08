@@ -2,6 +2,7 @@
 import unittest
 
 from app.api.schemas import SearchResponse, SearchResultSchema
+from app.services.evaluation_service import aggregate_scores, score_retrieval
 
 
 class TestSearchSchema(unittest.TestCase):
@@ -16,3 +17,9 @@ class TestSearchSchema(unittest.TestCase):
         )
         response = SearchResponse(results=[result], query="startup")
         self.assertEqual(response.results[0].start_line, 1)
+
+    def test_retrieval_metrics_calculate_recall_and_mrr(self):
+        score = score_retrieval(["a.py", "b.py"], ["x.py", "b.py", "a.py"])
+        self.assertEqual(score["recall"], 1.0)
+        self.assertEqual(score["reciprocal_rank"], 0.5)
+        self.assertEqual(aggregate_scores([score])["mrr"], 0.5)
