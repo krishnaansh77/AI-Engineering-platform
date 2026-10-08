@@ -33,18 +33,31 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
         return f"google/{self._model}"
 
     def _embed_batch_sync(self, texts: List[str]) -> List[List[float]]:
-        """Call Google embedding API synchronously for a batch of texts."""
-        results = []
-        for text in texts:
-            if not text or not text.strip():
-                text = " "
-            response = self._genai.embed_content(
-                model=self._model,
-                content=text,
-                task_type="retrieval_document",
-                output_dimensionality=self._dimension,
+        """Call Google embedding API once for a batch of texts.
+
+        Sending the whole batch in one request is important for the Gemini
+        free tier, whose request quota is much tighter than its token quota.
+        """
+        contents = [text if text and text.strip() else " " for text in texts]
+        response = self._genai.embed_content(
+            model=self._model,
+            content=contents,
+            task_type="retrieval_document",
+            output_dimensionality=self._dimension,
+        )
+        raw_embeddings = response["embedding"]
+        embeddings = (
+            [raw_embeddings]
+            if raw_embeddings and isinstance(raw_embeddings[0], (int, float))
+            else raw_embeddings
+        )
+        if len(embeddings) != len(contents):
+            raise ValueError(
+                f"Gemini returned {len(embeddings)} embeddings for {len(contents)} inputs"
             )
-            vec = response["embedding"]
+
+        results = []
+        for vec in embeddings:
             # Pad or truncate to match configured dimension
             if len(vec) < self._dimension:
                 vec = vec + [0.0] * (self._dimension - len(vec))
