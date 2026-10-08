@@ -118,6 +118,19 @@ export interface SourceFilePreview {
   content: string;
 }
 
+export interface RepositoryTourFile {
+  file_path: string;
+  connections: number;
+  symbols: string[];
+  layer: string;
+}
+
+export interface RepositoryTour {
+  file_count: number;
+  relationship_count: number;
+  key_files: RepositoryTourFile[];
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -250,6 +263,11 @@ export const api = {
     const { data } = await client.get<SourceFilePreview>(
       `/repos/${repoId}/source/${filePath.split("/").map(encodeURIComponent).join("/")}`
     );
+    return data;
+  },
+
+  getRepositoryTour: async (repoId: string): Promise<RepositoryTour> => {
+    const { data } = await client.get<RepositoryTour>(`/repos/${repoId}/tour`);
     return data;
   },
 };

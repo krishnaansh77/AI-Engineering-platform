@@ -138,6 +138,33 @@ class DependencyGraphService:
             "untested_files": untested_files,
         }
 
+    async def build_repository_tour(self, repo_id: uuid.UUID, db: AsyncSession) -> dict:
+        """Return a compact onboarding-oriented view of the repository structure."""
+        graph = await self.build_file_graph(repo_id, db)
+        connection_counts: Dict[str, int] = {node["id"]: 0 for node in graph["nodes"]}
+        for edge in graph["edges"]:
+            connection_counts[edge["source"]] += 1
+            connection_counts[edge["target"]] += 1
+
+        key_files = []
+        for node in sorted(
+            graph["nodes"],
+            key=lambda item: (-connection_counts[item["id"]], item["file_path"]),
+        )[:8]:
+            key_files.append(
+                {
+                    "file_path": node["file_path"],
+                    "connections": connection_counts[node["id"]],
+                    "symbols": [symbol["name"] for symbol in node.get("symbols", [])[:6]],
+                    "layer": self.classify_layer(node["file_path"]),
+                }
+            )
+        return {
+            "file_count": graph["node_count"],
+            "relationship_count": graph["edge_count"],
+            "key_files": key_files,
+        }
+
     @staticmethod
     def classify_layer(file_path: str) -> str:
         """Infer a useful architecture layer from a repository-relative path."""
