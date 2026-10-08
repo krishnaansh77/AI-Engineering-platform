@@ -170,6 +170,17 @@ export interface DocumentationQuality {
   gaps: DocumentationGap[];
 }
 
+export interface DocumentationPreview {
+  file_path: string;
+  audience: string;
+  preview: string;
+  citation: { file_path: string; start_line: number; end_line: number };
+  model: string;
+  prompt_tokens: number;
+  completion_tokens: number;
+  saved: boolean;
+}
+
 export interface LatestChangeAnalysis {
   sha: string;
   short_sha: string;
@@ -380,6 +391,11 @@ export const api = {
 
   getDocumentationQuality: async (repoId: string): Promise<DocumentationQuality> => {
     const { data } = await client.get<DocumentationQuality>(`/repos/${repoId}/documentation/quality`);
+    return data;
+  },
+
+  generateDocumentationPreview: async (repoId: string, filePath: string, audience = "developers"): Promise<DocumentationPreview> => {
+    const { data } = await client.post<DocumentationPreview>(`/repos/${repoId}/documentation/generate-preview`, { file_path: filePath, audience });
     return data;
   },
 

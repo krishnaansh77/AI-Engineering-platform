@@ -17,6 +17,7 @@ from redis import asyncio as redis
 
 from app.api.schemas import (
     ConnectRepoRequest,
+    DocumentationPreviewRequest,
     PRComparisonRequest,
     RepoStatsResponse,
     RepositoryResponse,
@@ -32,6 +33,7 @@ from app.services.indexing_service import IndexingService
 from app.services.graph_service import DependencyGraphService
 from app.services.github_service import GitHubService
 from app.services.retrieval_service import RetrievalService
+from app.services.llm_service import LLMService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
@@ -368,6 +370,44 @@ async def get_repository_documentation(
     if not repository.clone_path:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository clone is unavailable.")
     return {"documents": GitHubService().list_documentation_files(repository.clone_path)}
+
+
+@router.post("/{repo_id}/documentation/generate-preview")
+async def generate_documentation_preview(
+    repo_id: uuid.UUID,
+    payload: DocumentationPreviewRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Generate a bounded, citation-backed documentation draft without saving it."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready" or not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must be ready before documentation can be generated.")
+    try:
+        source = GitHubService().read_source_file(repository.clone_path, payload.file_path, max_bytes=50_000)
+        line_count = source["content"].count("\n") + 1
+        content, model, prompt_tokens, completion_tokens = await LLMService().generate_documentation_preview(
+            source["file_path"], source["content"], payload.audience
+        )
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source file was not found in the repository.") from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Documentation provider failed for repository %s", repo_id)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Documentation generation is temporarily unavailable or over quota.") from exc
+    return {
+        "file_path": source["file_path"],
+        "audience": payload.audience,
+        "preview": content,
+        "citation": {"file_path": source["file_path"], "start_line": 1, "end_line": line_count},
+        "model": model,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "saved": False,
+    }
 
 
 @router.get("/{repo_id}/pr-analysis/latest")

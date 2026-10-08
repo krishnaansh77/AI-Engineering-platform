@@ -109,6 +109,12 @@ class PRComparisonRequest(BaseModel):
     head: str = Field(..., min_length=1, max_length=200)
 
 
+class DocumentationPreviewRequest(BaseModel):
+    """Request an unsaved, citation-backed documentation draft."""
+    file_path: str = Field(..., min_length=1, max_length=500)
+    audience: str = Field("developers", min_length=1, max_length=100)
+
+
 class FeedbackRequest(BaseModel):
     """User rating for a generated repository answer."""
     question: str = Field(..., min_length=1, max_length=10000)

@@ -54,6 +54,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Base/head PR comparison by branch or commit SHA, including changed files, insertions/deletions, tests, documentation, and downstream dependency impact
 - GitHub issue listing and issue-to-code relevance analysis
 - Issue intelligence hardening with open/closed/all state selection, Redis caching, bounded retries, and mocked GitHub tests
+- Explicit documentation generation preview for one bounded source file, with citation metadata, audience control, provider usage metadata, and no automatic saving
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
 - Per-case and average retrieval latency in evaluation results
@@ -86,10 +87,11 @@ Phase 3 is not finished yet. The remaining work is listed below.
    - Added open, closed, and all issue states in the API and UI.
    - Added mocked GitHub response tests and invalid-state validation.
 
-3. **Automatic documentation generation**
-   - Generate module/function documentation only on explicit user action.
-   - Require citation-backed output and show a preview before saving.
-   - Add provider-cost protection and a maximum generation scope.
+3. **Controlled documentation generation** — preview milestone complete
+   - Generate a draft only on explicit user action for one selected source file.
+   - Return citation metadata and show the draft in the UI before any save action.
+   - Enforce a 50 KB source limit and a 1,200-token output limit; no automatic file writes are performed.
+   - Future work: add an explicit user-approved export/save flow with a diff and confirmation.
 
 4. **RAG evaluation expansion**
    - Expand the starter benchmark to 10–20 representative questions for the target repositories.

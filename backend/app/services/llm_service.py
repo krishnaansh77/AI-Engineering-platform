@@ -117,3 +117,28 @@ class LLMService:
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,
         )
+
+    async def generate_documentation_preview(
+        self, file_path: str, source: str, audience: str
+    ) -> tuple[str, str, int, int]:
+        """Generate an unsaved documentation draft from one bounded source file."""
+        messages = [
+            LLMMessage(
+                role="system",
+                content=(
+                    "You write concise developer documentation grounded only in the supplied source. "
+                    "Do not invent behavior. Mention uncertainty explicitly. Return Markdown with a short "
+                    "overview, responsibilities, public API or important symbols, and usage notes when visible."
+                ),
+            ),
+            LLMMessage(
+                role="user",
+                content=(
+                    f"File: {file_path}\nAudience: {audience}\n"
+                    "This is a preview only; do not suggest modifying files automatically.\n\n"
+                    f"```text\n{source}\n```"
+                ),
+            ),
+        ]
+        response = await self.provider.complete(messages, max_tokens=1200)
+        return response.content, response.model, response.prompt_tokens, response.completion_tokens

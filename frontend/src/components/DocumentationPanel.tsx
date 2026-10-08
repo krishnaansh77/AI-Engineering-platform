@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { BookOpen, FileText } from "lucide-react";
-import { api, DocumentationInventory, getErrorMessage } from "@/lib/api";
+import { api, DocumentationInventory, DocumentationPreview, getErrorMessage } from "@/lib/api";
 
 export default function DocumentationPanel({ repoId }: { repoId: string }) {
   const [inventory, setInventory] = useState<DocumentationInventory | null>(null);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [, setError] = useState<string | null>(null);
+  const [sourcePath, setSourcePath] = useState("");
+  const [audience, setAudience] = useState("developers");
+  const [preview, setPreview] = useState<DocumentationPreview | null>(null);
+  const [generating, setGenerating] = useState(false);
 
   useEffect(() => {
     api.getDocumentation(repoId).then((data) => {
@@ -26,6 +30,8 @@ export default function DocumentationPanel({ repoId }: { repoId: string }) {
         <h2 className="text-sm font-semibold text-slate-700">Documentation</h2>
       </div>
       <p className="text-xs text-slate-500 mb-4">README and documentation files discovered in the repository.</p>
+      <div className="mb-4 border border-amber-100 bg-amber-50/40 rounded-lg p-3"><p className="text-xs font-semibold text-amber-900">Generate documentation preview</p><p className="text-[11px] text-amber-800 mt-1">Uses one source file, shows citations, and never saves automatically.</p><div className="flex flex-col sm:flex-row gap-2 mt-2"><input value={sourcePath} onChange={(event) => setSourcePath(event.target.value)} placeholder="backend/app/services/example.py" className="flex-1 px-2 py-1.5 border border-slate-300 rounded text-xs" /><input value={audience} onChange={(event) => setAudience(event.target.value)} placeholder="Audience" className="w-32 px-2 py-1.5 border border-slate-300 rounded text-xs" /><button disabled={generating || !sourcePath.trim()} onClick={async () => { setGenerating(true); setError(null); try { setPreview(await api.generateDocumentationPreview(repoId, sourcePath.trim(), audience.trim() || "developers")); } catch (reason) { setError(getErrorMessage(reason)); } finally { setGenerating(false); } }} className="px-3 py-1.5 rounded bg-amber-600 text-white text-xs disabled:opacity-50">{generating ? "Generating…" : "Preview"}</button></div></div>
+      {preview && <div className="mb-4 border border-sky-100 bg-sky-50/40 rounded-lg p-3"><p className="text-xs font-semibold text-slate-700">Preview for {preview.file_path}</p><p className="text-[11px] text-slate-500 mt-1">Citation: {preview.citation.file_path} · lines {preview.citation.start_line}–{preview.citation.end_line} · {preview.model}</p><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-slate-700">{preview.preview}</pre></div>}
       <div className="grid lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] gap-3">
         <div className="border border-slate-200 rounded-lg overflow-hidden max-h-56 overflow-y-auto">
           {inventory.documents.map((document) => (
