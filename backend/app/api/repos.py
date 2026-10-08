@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import desc, select
+from sqlalchemy import case, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import (
@@ -23,6 +23,8 @@ from app.database import AsyncSessionLocal, get_db
 from app.config import settings
 from app.models.repository import Repository
 from app.models.source_file import SourceFile
+from app.models.query_feedback import QueryFeedback
+from app.models.query_event import QueryEvent
 from app.services.indexing_service import IndexingService
 from app.services.graph_service import DependencyGraphService
 from app.services.github_service import GitHubService
@@ -494,6 +496,19 @@ async def export_repository_report(
     tests = await graph_service.build_test_summary(repo_id, db)
     docs = await graph_service.build_documentation_quality(repo_id, db)
     history = GitHubService().get_commit_history(repository.clone_path, 5) if repository.clone_path else []
+    feedback_result = await db.execute(
+        select(
+            func.count(QueryFeedback.id),
+            func.sum(case((QueryFeedback.rating == "helpful", 1), else_=0)),
+        ).where(QueryFeedback.repository_id == repo_id)
+    )
+    feedback_total, feedback_helpful = feedback_result.one()
+    metrics_result = await db.execute(
+        select(func.count(QueryEvent.id), func.avg(QueryEvent.total_latency_ms)).where(QueryEvent.repository_id == repo_id)
+    )
+    query_total, average_latency = metrics_result.one()
+    feedback_total = int(feedback_total or 0)
+    feedback_helpful = int(feedback_helpful or 0)
 
     lines = [
         f"# Repository Intelligence Report: {repository.full_name}",
@@ -506,6 +521,9 @@ async def export_repository_report(
         f"- Source symbols: {docs['symbol_count']}",
         f"- Documentation coverage: {round(docs['coverage'] * 100)}%",
         f"- Test-linked source files: {tests['tested_file_count']} / {tests['source_file_count']}",
+        f"- Answer helpful rate: {round(feedback_helpful / feedback_total * 100)}% ({feedback_total} ratings)" if feedback_total else "- Answer helpful rate: no ratings yet",
+        f"- Successful questions: {int(query_total or 0)}",
+        f"- Average question latency: {round(float(average_latency))} ms" if average_latency is not None else "- Average question latency: no queries yet",
         "",
         "## Architecture Layers",
     ]
