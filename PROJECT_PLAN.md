@@ -96,8 +96,9 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added real PostgreSQL/pgvector endpoint smoke tests for retrieval evaluation and feedback citation aggregation, executed in the seeded CI job
 - Added a PostgreSQL-backed indexing pipeline integration test with mocked external services
 - Added reusable RAG evaluation documentation for repository-specific benchmarks
+- Added and validated `docs/rag-benchmark.ai-engineering-platform.json` with 10 questions for this repository. Baseline against the seeded local index: Recall@5 **0.60**, MRR **0.545**, expected-file hit rate **0.80**, average retrieval latency **712.87 ms**.
 
-Phase 3 is not finished yet. Two quality/product inputs remain; the previously listed browser accessibility smoke check is complete.
+Phase 3 is not finished yet. One retrieval-quality improvement remains; the previously listed browser accessibility smoke check and repository benchmark authoring are complete.
 
 ## Important current behavior and limitations
 
@@ -105,7 +106,7 @@ Phase 3 is not finished yet. Two quality/product inputs remain; the previously l
 - Never paste API keys or PATs into chat or commit them. Put them only in local `.env`, which is ignored by Git.
 - Documentation and test coverage are heuristic signals, not replacements for runtime coverage or human review.
 - Commit impact analysis uses the files available in the local shallow clone.
-- Formal RAG evaluation requires benchmark questions and expected file paths; one live smoke benchmark currently returns Recall@3 `1.0` and MRR `1.0` for database initialization.
+- Formal RAG evaluation now has a repository-specific 10-case benchmark; the current baseline is recorded above. A subsequent full re-index was blocked by the Gemini free embedding request limit, so no provider-space mixing was introduced.
 - Gemini quota limits can temporarily return a controlled `503`; Redis caching reduces repeated LLM calls but does not remove provider limits.
 
 ## Next work plan
@@ -131,8 +132,8 @@ Phase 3 is not finished yet. Two quality/product inputs remain; the previously l
 
 4. **RAG evaluation expansion**
    - Expanded the starter benchmark to 10 representative questions and added validation tests for benchmark files.
-   - Added reusable instructions for tailoring expected files and running 10–20 question benchmarks per target repository; repository-specific benchmark authoring remains an owner-provided quality input.
-   - Answer-level citation coverage, helpful-rate reporting, and helpful-versus-unhelpful citation breakdowns are now surfaced in the quality dashboard; query responses now also report the fraction of returned citations explicitly referenced by the answer, with UI visibility in chat.
+   - Added reusable instructions for tailoring expected files and running 10–20 question benchmarks per target repository, plus a verified benchmark for this platform itself.
+   - Answer-level citation coverage, helpful-rate reporting, and helpful-versus-unhelpful citation breakdowns are now surfaced in the quality dashboard; query responses now also report the fraction of returned citations explicitly referenced by the answer, with UI visibility in chat. The first 10-case baseline identifies evaluation-ranking and secret-scan retrieval as the main tuning gaps.
    - CI validates the benchmark template and runs retrieval evaluation against a seeded PostgreSQL/pgvector repository.
 
 ### Phase 3B — Quality and safety

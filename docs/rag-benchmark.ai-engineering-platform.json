@@ -1,0 +1,17 @@
+{
+  "name": "AI Engineering Platform repository benchmark",
+  "description": "Verified benchmark for the platform's own repository.",
+  "top_k": 5,
+  "cases": [
+    {"question": "How is the database initialized and how are sessions created?", "expected_files": ["backend/app/database.py"]},
+    {"question": "Where are repository connection and re-index API routes defined?", "expected_files": ["backend/app/api/repos.py"]},
+    {"question": "How does hybrid retrieval combine vector and keyword results?", "expected_files": ["backend/app/services/retrieval_service.py"]},
+    {"question": "How are background repository indexing tasks configured?", "expected_files": ["backend/app/workers/tasks.py", "backend/app/workers/celery_app.py"]},
+    {"question": "How are retrieval evaluation metrics such as Recall and MRR calculated?", "expected_files": ["backend/app/services/evaluation_service.py", "backend/app/api/query.py"]},
+    {"question": "How are Gemini language-model and embedding providers selected?", "expected_files": ["backend/app/providers/llm/gemini_provider.py", "backend/app/providers/llm/factory.py", "backend/app/providers/embedding/gemini_embedding.py"]},
+    {"question": "Where is repository indexing status and progress updated?", "expected_files": ["backend/app/services/indexing_service.py", "backend/app/api/repos.py"]},
+    {"question": "How are query results cached and invalidated after indexing?", "expected_files": ["backend/app/services/query_cache.py", "backend/app/api/query.py"]},
+    {"question": "How does the documentation save flow preview a diff and prevent stale overwrites?", "expected_files": ["backend/app/services/github_service.py", "backend/app/api/repos.py", "frontend/src/components/DocumentationPanel.tsx"]},
+    {"question": "How are secret scan findings detected and redacted?", "expected_files": ["backend/app/services/secret_scan_service.py", "backend/app/api/repos.py"]}
+  ]
+}
