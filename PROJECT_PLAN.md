@@ -84,6 +84,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added CI validation for benchmark structure through the benchmark runner
 - Added a deterministic PostgreSQL/pgvector + Redis seeded benchmark job in CI
 - Surfaced answer citation coverage in the repository quality dashboard
+- Added accessible labels, live regions, alert semantics, and selection states across core repository and chat controls
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -129,7 +130,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 2. Add API rate limits and request-size limits where appropriate — baseline, endpoint-specific protection, and ASGI middleware tests complete.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
-5. Improve accessibility and responsive behavior across the repository detail page — baseline labels, focus states, live regions, and responsive Phase 3 controls complete; a full WCAG audit remains future work.
+5. Improve accessibility and responsive behavior across the repository detail page — core labels, focus states, live regions, alert semantics, selection states, and responsive Phase 3 controls complete; a full WCAG audit remains future work.
 
 ### CI status
 

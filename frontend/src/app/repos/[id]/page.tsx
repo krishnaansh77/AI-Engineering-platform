@@ -140,6 +140,8 @@ export default function RepoDetailPage() {
           {/* Actions */}
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
+              type="button"
+              aria-label={`Re-index ${repo.name}`}
               onClick={handleReindex}
               disabled={reindexing || repo.status === "indexing"}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -150,6 +152,8 @@ export default function RepoDetailPage() {
               Re-index
             </button>
             <button
+              type="button"
+              aria-label={`Delete ${repo.name}`}
               onClick={handleDelete}
               disabled={deleting}
               className="flex items-center gap-1.5 px-3 py-1.5 border border-red-200 rounded-lg text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"

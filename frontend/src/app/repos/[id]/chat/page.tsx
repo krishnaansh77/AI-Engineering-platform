@@ -169,7 +169,7 @@ export default function ChatPage() {
       </div>
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6">
+      <div className="flex-1 overflow-y-auto px-6 py-6 space-y-6" role="log" aria-label="Repository conversation" aria-live="polite" aria-busy={isLoading}>
         {/* Welcome */}
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -211,7 +211,7 @@ export default function ChatPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="mx-6 mb-2 text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
+        <div role="alert" className="mx-6 mb-2 text-xs text-red-600 bg-red-50 border border-red-200 px-3 py-2 rounded-lg">
           {error}
         </div>
       )}
@@ -220,6 +220,7 @@ export default function ChatPage() {
       <div className="flex-shrink-0 bg-white border-t border-slate-200 px-6 py-4">
         <form onSubmit={handleSubmit} className="flex gap-3 items-end max-w-4xl mx-auto">
           <textarea
+            aria-label="Ask a question about the repository"
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -232,6 +233,7 @@ export default function ChatPage() {
           />
           <button
             type="submit"
+            aria-label={isLoading ? "Sending question" : "Send question"}
             disabled={isLoading || !input.trim()}
             className="flex-shrink-0 w-11 h-11 flex items-center justify-center bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white rounded-xl shadow-sm"
           >
