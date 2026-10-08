@@ -40,6 +40,27 @@ pre,
   @apply transition-colors duration-150;
 }
 
+/* Keep keyboard focus visible even when a component uses outline-none. */
+:focus-visible {
+  outline: 3px solid theme("colors.sky.500");
+  outline-offset: 2px;
+}
+
+/* Respect users who prefer reduced motion, including loading animations. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Loading pulse animation */
 @keyframes pulse-ring {
   0% { transform: scale(0.8); opacity: 1; }
