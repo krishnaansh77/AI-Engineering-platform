@@ -11,6 +11,29 @@ class ConnectRepoRequest(BaseModel):
     name: Optional[str] = Field(None, description="Optional custom display name")
 
 
+class RegisterRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=320)
+    password: str = Field(..., min_length=8, max_length=200)
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(..., min_length=3, max_length=320)
+    password: str = Field(..., min_length=1, max_length=200)
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    email: str
+    role: str
+
+
+class AuthResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
 class RepositoryResponse(BaseModel):
     """Public representation of a connected repository."""
     model_config = ConfigDict(from_attributes=True)

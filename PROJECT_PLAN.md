@@ -100,6 +100,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added and validated `docs/rag-benchmark.ai-engineering-platform.json` with 10 questions for this repository. Baseline against the seeded local index: Recall@5 **0.60**, MRR **0.545**, expected-file hit rate **0.80**, average retrieval latency **712.87 ms**.
 
 Phase 3 feature work is complete. One provider-dependent retrieval validation remains; the browser accessibility smoke check, repository benchmark authoring, retrieval improvement, and quota resilience are complete.
+- Phase 4 — Production & Advanced Capabilities: **in progress**
 
 ## Important current behavior and limitations
 
@@ -151,7 +152,7 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
 
 ### Phase 4 — Production and advanced capabilities
 
-- Authentication and RBAC
+- Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, and Alembic migration `003_users`. Existing repository endpoints remain backward-compatible until the next access-control step.
 - Multi-repository workspaces
 - GitHub App instead of PAT-only access
 - Full PR and branch comparison

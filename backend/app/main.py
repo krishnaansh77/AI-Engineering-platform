@@ -13,6 +13,7 @@ from sqlalchemy import text
 from app.api.query import router as query_router
 from app.api.repos import router as repos_router
 from app.api.webhook import router as webhook_router
+from app.api.auth import router as auth_router
 from app.config import settings
 from app.database import create_all_tables, engine
 from app.services.rate_limit_service import rate_limit_for_path
@@ -107,6 +108,7 @@ app.add_middleware(
 app.include_router(repos_router)
 app.include_router(query_router)
 app.include_router(webhook_router)
+app.include_router(auth_router)
 
 
 @app.get("/", tags=["status"])
