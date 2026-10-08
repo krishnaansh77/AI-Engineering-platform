@@ -1,12 +1,15 @@
 """FastAPI main application entrypoint."""
 import logging
 import time
+import asyncio
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from alembic import command
+from alembic.config import Config as AlembicConfig
 from redis import asyncio as redis
 from sqlalchemy import text
 
@@ -23,6 +26,12 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("aise")
+
+
+def _upgrade_database() -> None:
+    """Run checked-in migrations in a worker thread during service startup."""
+    alembic_config = AlembicConfig("alembic.ini")
+    command.upgrade(alembic_config, "head")
 
 
 class SafetyMiddleware:
@@ -75,6 +84,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan event handler for startup and shutdown routines."""
     logger.info("Initializing AI Software Engineering Intelligence Platform backend...")
     try:
+        if settings.AUTO_MIGRATE_ON_STARTUP:
+            await asyncio.to_thread(_upgrade_database)
+            logger.info("Database migrations applied successfully.")
         await create_all_tables()
         logger.info("Database tables and pgvector extension initialized successfully.")
     except Exception as e:

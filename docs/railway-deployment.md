@@ -38,6 +38,7 @@ GITHUB_APP_PRIVATE_KEY=<optional GitHub App private key; use escaped newlines>
 GITHUB_WEBHOOK_SECRET=<optional Railway secret>
 SECRET_KEY=<new production secret>
 APP_ENV=production
+AUTO_MIGRATE_ON_STARTUP=true
 REPOS_CLONE_DIR=/repos
 ```
 
@@ -70,7 +71,7 @@ CORS_ORIGINS=https://<frontend-public-domain>
 2. Add PostgreSQL and Redis templates.
 3. Add the backend service from GitHub with root directory `/backend`.
 4. Configure backend variables and add its public domain.
-5. Run `alembic upgrade head` as a one-time backend migration command.
+5. Keep `AUTO_MIGRATE_ON_STARTUP=true`; the backend applies checked-in Alembic migrations before serving traffic.
 6. Add the worker service from the same repository with root directory `/backend`.
 7. Configure the worker start command and Railway-linked PostgreSQL/Redis variables.
 8. Add the frontend service with root directory `/frontend`.

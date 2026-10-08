@@ -39,7 +39,7 @@ Use `LLM_PROVIDER=mock` and `EMBEDDING_PROVIDER=mock` only for local tests. Prod
 
 1. Build and publish the backend and frontend images.
 2. Start PostgreSQL and Redis.
-3. Run database migrations:
+3. Database migrations run automatically when the backend starts (`AUTO_MIGRATE_ON_STARTUP=true` by default). To apply them manually or verify them before starting traffic, run:
 
    ```bash
    alembic upgrade head
