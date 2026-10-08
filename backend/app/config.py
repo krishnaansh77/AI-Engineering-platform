@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     QUERY_CACHE_TTL_SECONDS: int = 86400
     LLM_FALLBACK_PROVIDER: str = "mock"
     API_RATE_LIMIT_PER_MINUTE: int = 120
+    API_EXPENSIVE_RATE_LIMIT_PER_MINUTE: int = 30
     API_MAX_REQUEST_BYTES: int = 1_000_000
 
     # ── Storage ───────────────────────────────────────────────────────────────

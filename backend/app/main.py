@@ -15,6 +15,7 @@ from app.api.repos import router as repos_router
 from app.api.webhook import router as webhook_router
 from app.config import settings
 from app.database import create_all_tables, engine
+from app.services.rate_limit_service import rate_limit_for_path
 
 logging.basicConfig(
     level=logging.INFO,
@@ -44,14 +45,19 @@ class SafetyMiddleware:
             except ValueError:
                 pass
         client_host = (scope.get("client") or ("unknown", 0))[0]
+        limit, route_bucket = rate_limit_for_path(
+            scope.get("path", ""),
+            settings.API_RATE_LIMIT_PER_MINUTE,
+            settings.API_EXPENSIVE_RATE_LIMIT_PER_MINUTE,
+        )
         bucket = int(time.time() // 60)
-        key = f"aise:rate:{client_host}:{bucket}"
+        key = f"aise:rate:{route_bucket}:{client_host}:{bucket}"
         client = redis.from_url(settings.REDIS_URL, decode_responses=True)
         try:
             count = await client.incr(key)
             if count == 1:
                 await client.expire(key, 60)
-            if count > settings.API_RATE_LIMIT_PER_MINUTE:
+            if count > limit:
                 response = JSONResponse(status_code=429, content={"error": {"code": "RATE_LIMITED", "message": "Too many requests. Retry after the current minute."}}, headers={"Retry-After": "60"})
                 await response(scope, receive, send)
                 return
