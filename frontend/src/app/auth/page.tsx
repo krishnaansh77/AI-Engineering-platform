@@ -18,6 +18,8 @@ export default function AuthPage() {
       const result = mode === "login" ? await api.login(email, password) : await api.register(email, password);
       localStorage.setItem("aise_access_token", result.access_token);
       setMessage(`Signed in as ${result.user.email} (${result.user.role}).`);
+      const next = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
+      if (next && next.startsWith("/")) window.location.href = next;
     } catch (reason) { setError(getErrorMessage(reason)); }
     finally { setLoading(false); }
   };

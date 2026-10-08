@@ -37,11 +37,11 @@ from app.services.github_service import GitHubService
 from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
 from app.services.secret_scan_service import SecretScanService
-from app.api.auth import assert_repository_owner, require_roles
+from app.api.auth import assert_repository_owner, get_current_user, require_roles
 from app.models.user import User
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/repos", tags=["repositories"])
+router = APIRouter(prefix="/repos", tags=["repositories"], dependencies=[Depends(get_current_user)])
 
 
 async def _read_issue_cache(key: str) -> list | None:

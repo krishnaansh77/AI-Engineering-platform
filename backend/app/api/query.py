@@ -12,6 +12,7 @@ from redis import asyncio as redis
 
 from app.api.schemas import CitationSchema, EvaluationRequest, FeedbackRequest, QueryRequest, QueryResponse, SearchResponse, SearchResultSchema
 from app.api.errors import error_detail
+from app.api.auth import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models.repository import Repository
@@ -23,7 +24,7 @@ from app.services.query_cache import build_query_cache_key
 from app.services.evaluation_service import aggregate_scores, score_retrieval
 
 logger = logging.getLogger(__name__)
-router = APIRouter(tags=["query"])
+router = APIRouter(tags=["query"], dependencies=[Depends(get_current_user)])
 
 
 async def _read_cached_query(key: str) -> dict | None:

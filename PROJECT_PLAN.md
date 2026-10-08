@@ -152,7 +152,7 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
 
 ### Phase 4 — Production and advanced capabilities
 
-- Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migrations `003_users` and `004_repository_owners`, repository ownership, and a frontend account screen. Authenticated members can connect, re-index, and delete their own repositories; admins/owners retain global mutation access. Read-only repository intelligence remains backward-compatible. Ownership migration is applied locally and Alembic is at head.
+- Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migrations `003_users` and `004_repository_owners`, repository ownership, and a frontend account screen. Repository and query APIs now require authentication; authenticated members can connect, re-index, and delete their own repositories; admins/owners retain global mutation access. The frontend redirects unauthenticated API requests to `/auth`. Ownership migration is applied locally and Alembic is at head.
 - Multi-repository workspaces
 - GitHub App instead of PAT-only access
 - Full PR and branch comparison
