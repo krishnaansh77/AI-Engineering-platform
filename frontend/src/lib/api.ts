@@ -54,6 +54,9 @@ export interface QueryResponse {
   cached?: boolean;
 }
 
+export interface AuthUser { id: string; email: string; role: string; }
+export interface AuthResponse { access_token: string; token_type: string; user: AuthUser; }
+
 export type FeedbackRating = "helpful" | "not_helpful";
 
 export interface GitCommit {
@@ -325,6 +328,16 @@ export interface ConnectRepoRequest {
 // ─── API Client ───────────────────────────────────────────────────────────────
 
 export const api = {
+  register: async (email: string, password: string): Promise<AuthResponse> => {
+    const { data } = await client.post<AuthResponse>("/auth/register", { email, password });
+    return data;
+  },
+
+  login: async (email: string, password: string): Promise<AuthResponse> => {
+    const { data } = await client.post<AuthResponse>("/auth/login", { email, password });
+    return data;
+  },
+
   // Repositories
   connectRepo: async (payload: ConnectRepoRequest): Promise<Repository> => {
     const { data } = await client.post<Repository>("/repos/connect", payload);

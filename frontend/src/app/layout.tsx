@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
-import { GitBranch, MessageSquare, LayoutDashboard, BookOpen } from "lucide-react";
+import { GitBranch, MessageSquare, LayoutDashboard, BookOpen, UserRound } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "AI Software Engineering Intelligence Platform",
@@ -13,6 +13,7 @@ const navLinks = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/repos/new", label: "Connect Repo", icon: GitBranch },
   { href: "/docs", label: "Documentation", icon: BookOpen },
+  { href: "/auth", label: "Account", icon: UserRound },
 ];
 
 export default function RootLayout({
@@ -58,7 +59,7 @@ export default function RootLayout({
 
           {/* Footer */}
           <div className="px-5 py-4 border-t border-slate-800">
-            <p className="text-slate-500 text-xs">Phase 3 · Developer Productivity &amp; Safety</p>
+            <p className="text-slate-500 text-xs">Phase 4 · Production &amp; Access</p>
           </div>
         </aside>
 

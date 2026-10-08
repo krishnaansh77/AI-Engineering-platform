@@ -152,7 +152,7 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
 
 ### Phase 4 — Production and advanced capabilities
 
-- Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, and Alembic migration `003_users`. Existing repository endpoints remain backward-compatible until the next access-control step.
+- Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migration `003_users`, and a frontend account screen. Existing repository endpoints remain backward-compatible until the next access-control step.
 - Multi-repository workspaces
 - GitHub App instead of PAT-only access
 - Full PR and branch comparison
