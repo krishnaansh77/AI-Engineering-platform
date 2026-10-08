@@ -3,6 +3,7 @@ import asyncio
 import logging
 import uuid
 import git
+import httpx
 from typing import List
 from urllib.parse import urlparse
 
@@ -17,11 +18,13 @@ from app.api.schemas import (
     SourceFileResponse,
 )
 from app.database import AsyncSessionLocal, get_db
+from app.config import settings
 from app.models.repository import Repository
 from app.models.source_file import SourceFile
 from app.services.indexing_service import IndexingService
 from app.services.graph_service import DependencyGraphService
 from app.services.github_service import GitHubService
+from app.services.retrieval_service import RetrievalService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
@@ -387,3 +390,64 @@ async def get_documentation_quality(
     if repository.status != "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before documentation quality is available.")
     return await DependencyGraphService().build_documentation_quality(repo_id, db)
+
+
+@router.get("/{repo_id}/issues")
+async def list_repository_issues(
+    repo_id: uuid.UUID,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """List open GitHub issues for a connected repository."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    try:
+        issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, limit)
+    except (httpx.HTTPError, ValueError) as exc:
+        logger.warning("Could not fetch issues for repository %s: %s", repo_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable.") from exc
+    return {"issues": issues}
+
+
+@router.get("/{repo_id}/issues/{issue_number}/analysis")
+async def analyze_repository_issue(
+    repo_id: uuid.UUID,
+    issue_number: int,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Find indexed code likely related to one open GitHub issue."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before issue analysis is available.")
+    try:
+        issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, 50)
+    except (httpx.HTTPError, ValueError) as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable.") from exc
+    issue = next((item for item in issues if item["number"] == issue_number), None)
+    if not issue:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Open issue not found")
+    chunks = await RetrievalService().retrieve(
+        query=f"{issue['title']}\n{issue['body']}",
+        repo_id=repo_id,
+        db=db,
+        top_k=settings.RETRIEVAL_TOP_K,
+        final_k=5,
+    )
+    return {
+        "issue": issue,
+        "relevant_files": [
+            {
+                "file_path": chunk.file_path,
+                "symbol_name": chunk.symbol_name,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "score": round(chunk.score, 6),
+            }
+            for chunk in chunks
+        ],
+    }

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 import git
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -304,6 +305,32 @@ class GitHubService:
             "deletions": int(commit.stats.total.get("deletions", 0)),
             "recommendations": recommendations,
         }
+
+    async def list_issues(self, github_url: str, pat: str = "", limit: int = 20) -> List[Dict]:
+        """Fetch open GitHub issues, excluding pull requests."""
+        parts = [part for part in github_url.rstrip("/").split("/") if part]
+        if len(parts) < 2:
+            raise ValueError("Invalid GitHub repository URL")
+        api_url = f"https://api.github.com/repos/{parts[-2]}/{parts[-1]}/issues"
+        headers = {"Accept": "application/vnd.github+json"}
+        if pat.strip():
+            headers["Authorization"] = f"Bearer {pat.strip()}"
+        async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
+            response = await client.get(api_url, params={"state": "open", "per_page": max(1, min(limit, 50))})
+            response.raise_for_status()
+            issues = response.json()
+        return [
+            {
+                "number": issue["number"],
+                "title": issue["title"],
+                "body": issue.get("body") or "",
+                "html_url": issue["html_url"],
+                "labels": [label["name"] for label in issue.get("labels", [])],
+                "created_at": issue["created_at"],
+            }
+            for issue in issues
+            if "pull_request" not in issue
+        ]
 
     def verify_webhook_signature(
         self, payload: bytes, signature_header: str, secret: str

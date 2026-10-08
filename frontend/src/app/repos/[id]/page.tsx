@@ -29,6 +29,7 @@ import CodeSearchPanel from "@/components/CodeSearchPanel";
 import LatestChangePanel from "@/components/LatestChangePanel";
 import TechnicalDebtPanel from "@/components/TechnicalDebtPanel";
 import DocumentationQualityPanel from "@/components/DocumentationQualityPanel";
+import IssueIntelligencePanel from "@/components/IssueIntelligencePanel";
 import { formatRelativeTime, getLanguageIcon } from "@/lib/utils";
 
 export default function RepoDetailPage() {
@@ -256,6 +257,8 @@ export default function RepoDetailPage() {
       {repo.status === "ready" && <TechnicalDebtPanel repoId={id} />}
 
       {repo.status === "ready" && <DocumentationQualityPanel repoId={id} />}
+
+      {repo.status === "ready" && <IssueIntelligencePanel repoId={id} />}
 
       {repo.status === "ready" && <GitHistoryPanel repoId={id} />}
 

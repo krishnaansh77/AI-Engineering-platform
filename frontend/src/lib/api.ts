@@ -197,6 +197,20 @@ export interface TechnicalDebtSummary {
   chunks_analyzed: number;
 }
 
+export interface RepositoryIssue {
+  number: number;
+  title: string;
+  body: string;
+  html_url: string;
+  labels: string[];
+  created_at: string;
+}
+
+export interface IssueAnalysis {
+  issue: RepositoryIssue;
+  relevant_files: Array<{ file_path: string; symbol_name: string | null; start_line: number; end_line: number; score: number }>;
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -359,6 +373,16 @@ export const api = {
 
   getTechnicalDebt: async (repoId: string): Promise<TechnicalDebtSummary> => {
     const { data } = await client.get<TechnicalDebtSummary>(`/repos/${repoId}/technical-debt`);
+    return data;
+  },
+
+  listIssues: async (repoId: string): Promise<{ issues: RepositoryIssue[] }> => {
+    const { data } = await client.get<{ issues: RepositoryIssue[] }>(`/repos/${repoId}/issues`);
+    return data;
+  },
+
+  analyzeIssue: async (repoId: string, issueNumber: number): Promise<IssueAnalysis> => {
+    const { data } = await client.get<IssueAnalysis>(`/repos/${repoId}/issues/${issueNumber}/analysis`);
     return data;
   },
 };
