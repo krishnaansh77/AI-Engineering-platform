@@ -2,6 +2,7 @@
 import logging
 import time
 import asyncio
+import re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncGenerator
@@ -28,6 +29,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("aise")
 EXPECTED_MIGRATION_REVISION = "007_query_token_usage"
+_migration_startup_error: str | None = None
 
 
 def _upgrade_database() -> None:
@@ -87,6 +89,7 @@ class SafetyMiddleware:
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan event handler for startup and shutdown routines."""
     logger.info("Initializing AI Software Engineering Intelligence Platform backend...")
+    global _migration_startup_error
     try:
         if settings.AUTO_MIGRATE_ON_STARTUP:
             await asyncio.to_thread(_upgrade_database)
@@ -94,6 +97,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         await create_all_tables()
         logger.info("Database tables and pgvector extension initialized successfully.")
     except Exception as e:
+        _migration_startup_error = re.sub(r"(?:postgres(?:ql)?|redis)\+?[^:]*://\S+", "<redacted-url>", str(e))[:240]
         logger.exception("Could not apply database migrations or initialize tables on startup: %s", e)
     yield
     logger.info("Shutting down AI Software Engineering Intelligence Platform backend...")
@@ -176,6 +180,7 @@ async def health_check() -> dict:
             "current_revision": migration_revision,
             "expected_revision": EXPECTED_MIGRATION_REVISION,
             "up_to_date": migration_revision == EXPECTED_MIGRATION_REVISION,
+            "startup_error": _migration_startup_error,
         },
         "app_env": settings.APP_ENV,
         "providers": {
