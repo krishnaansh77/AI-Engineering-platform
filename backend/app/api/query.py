@@ -3,7 +3,7 @@ import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import CitationSchema, FeedbackRequest, QueryRequest, QueryResponse
@@ -118,3 +118,34 @@ async def submit_query_feedback(
     db.add(feedback)
     await db.commit()
     return {"id": str(feedback.id), "status": "recorded"}
+
+
+@router.get("/repos/{repo_id}/feedback/summary")
+async def get_feedback_summary(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return aggregate answer feedback for a repository."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    if not repo_result.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+
+    result = await db.execute(
+        select(
+            func.count(QueryFeedback.id),
+            func.sum(case((QueryFeedback.rating == "helpful", 1), else_=0)),
+            func.sum(case((QueryFeedback.rating == "not_helpful", 1), else_=0)),
+            func.avg(QueryFeedback.retrieval_count),
+        ).where(QueryFeedback.repository_id == repo_id)
+    )
+    total, helpful, not_helpful, avg_retrieval = result.one()
+    total = int(total or 0)
+    helpful = int(helpful or 0)
+    not_helpful = int(not_helpful or 0)
+    return {
+        "total": total,
+        "helpful": helpful,
+        "not_helpful": not_helpful,
+        "helpful_rate": round(helpful / total, 3) if total else 0,
+        "average_retrieval_count": round(float(avg_retrieval), 2) if avg_retrieval is not None else 0,
+    }

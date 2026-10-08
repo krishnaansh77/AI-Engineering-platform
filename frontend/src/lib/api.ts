@@ -94,6 +94,14 @@ export interface TestIntelligence {
   untested_files: string[];
 }
 
+export interface FeedbackSummary {
+  total: number;
+  helpful: number;
+  not_helpful: number;
+  helpful_rate: number;
+  average_retrieval_count: number;
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -209,6 +217,11 @@ export const api = {
     payload: { question: string; rating: FeedbackRating; model: string; retrieval_count: number }
   ): Promise<void> => {
     await client.post(`/repos/${repoId}/feedback`, payload);
+  },
+
+  getFeedbackSummary: async (repoId: string): Promise<FeedbackSummary> => {
+    const { data } = await client.get<FeedbackSummary>(`/repos/${repoId}/feedback/summary`);
+    return data;
   },
 };
 
