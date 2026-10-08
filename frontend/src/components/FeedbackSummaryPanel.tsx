@@ -22,10 +22,11 @@ export default function FeedbackSummaryPanel({ repoId }: { repoId: string }) {
         <h2 className="text-sm font-semibold text-slate-700">Answer Quality Signals</h2>
       </div>
       <p className="text-xs text-slate-500 mb-4">Based on {summary.total} explicit answer rating{summary.total === 1 ? "" : "s"}.</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <Metric icon={<ThumbsUp className="w-3.5 h-3.5" />} label="Helpful rate" value={`${helpfulPercent}%`} />
         <Metric icon={<MessageCircle className="w-3.5 h-3.5" />} label="Helpful" value={summary.helpful} />
         <Metric icon={<BarChart3 className="w-3.5 h-3.5" />} label="Avg. sources" value={summary.average_retrieval_count} />
+        <Metric icon={<MessageCircle className="w-3.5 h-3.5" />} label="Avg. citations" value={summary.average_citation_count} />
       </div>
     </section>
   );

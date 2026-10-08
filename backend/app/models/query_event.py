@@ -19,6 +19,7 @@ class QueryEvent(Base):
     question_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     model: Mapped[str] = mapped_column(String(100), nullable=False)
     retrieval_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    citation_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     retrieval_latency_ms: Mapped[float] = mapped_column(Float, nullable=False)
     llm_latency_ms: Mapped[float] = mapped_column(Float, nullable=False)
     total_latency_ms: Mapped[float] = mapped_column(Float, nullable=False)

@@ -121,3 +121,4 @@ class FeedbackRequest(BaseModel):
     rating: Literal["helpful", "not_helpful"]
     model: str = Field(..., min_length=1, max_length=100)
     retrieval_count: int = Field(0, ge=0, le=100)
+    citation_count: int = Field(0, ge=0, le=100)

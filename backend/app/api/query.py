@@ -127,6 +127,7 @@ async def query_repository(
             question_hash=hashlib.sha256(payload.question.strip().encode("utf-8")).hexdigest(),
             model=query_answer.model,
             retrieval_count=len(retrieved_chunks),
+            citation_count=len(query_answer.citations),
             retrieval_latency_ms=round(retrieval_latency_ms, 2),
             llm_latency_ms=round(llm_latency_ms, 2),
             total_latency_ms=round((time.perf_counter() - query_started) * 1000, 2),
@@ -242,6 +243,7 @@ async def submit_query_feedback(
         rating=payload.rating,
         model=payload.model,
         retrieval_count=payload.retrieval_count,
+        citation_count=payload.citation_count,
     )
     db.add(feedback)
     await db.commit()
@@ -264,9 +266,11 @@ async def get_feedback_summary(
             func.sum(case((QueryFeedback.rating == "helpful", 1), else_=0)),
             func.sum(case((QueryFeedback.rating == "not_helpful", 1), else_=0)),
             func.avg(QueryFeedback.retrieval_count),
+            func.avg(QueryFeedback.citation_count),
+            func.sum(case((QueryFeedback.citation_count > 0, 1), else_=0)),
         ).where(QueryFeedback.repository_id == repo_id)
     )
-    total, helpful, not_helpful, avg_retrieval = result.one()
+    total, helpful, not_helpful, avg_retrieval, avg_citations, cited_answers = result.one()
     total = int(total or 0)
     helpful = int(helpful or 0)
     not_helpful = int(not_helpful or 0)
@@ -276,6 +280,8 @@ async def get_feedback_summary(
         "not_helpful": not_helpful,
         "helpful_rate": round(helpful / total, 3) if total else 0,
         "average_retrieval_count": round(float(avg_retrieval), 2) if avg_retrieval is not None else 0,
+        "average_citation_count": round(float(avg_citations), 2) if avg_citations is not None else 0,
+        "citation_coverage_rate": round(int(cited_answers or 0) / total, 3) if total else 0,
     }
 
 
@@ -295,13 +301,15 @@ async def get_query_metrics(
             func.avg(QueryEvent.llm_latency_ms),
             func.avg(QueryEvent.total_latency_ms),
             func.avg(QueryEvent.retrieval_count),
+            func.avg(QueryEvent.citation_count),
         ).where(QueryEvent.repository_id == repo_id)
     )
-    total, retrieval, llm, total_latency, retrieval_count = result.one()
+    total, retrieval, llm, total_latency, retrieval_count, citation_count = result.one()
     return {
         "total_queries": int(total or 0),
         "average_retrieval_latency_ms": round(float(retrieval), 2) if retrieval is not None else 0,
         "average_llm_latency_ms": round(float(llm), 2) if llm is not None else 0,
         "average_total_latency_ms": round(float(total_latency), 2) if total_latency is not None else 0,
         "average_retrieval_count": round(float(retrieval_count), 2) if retrieval_count is not None else 0,
+        "average_citation_count": round(float(citation_count), 2) if citation_count is not None else 0,
     }

@@ -122,6 +122,7 @@ export default function ChatPage() {
         rating,
         model: message.model,
         retrieval_count: message.retrievalCount ?? 0,
+        citation_count: message.citations?.length ?? 0,
       });
       setMessages((prev) => prev.map((item) => item.id === messageId ? { ...item, feedback: rating } : item));
     } catch (e) {

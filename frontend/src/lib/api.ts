@@ -102,6 +102,8 @@ export interface FeedbackSummary {
   not_helpful: number;
   helpful_rate: number;
   average_retrieval_count: number;
+  average_citation_count: number;
+  citation_coverage_rate: number;
 }
 
 export interface QueryMetrics {
@@ -110,6 +112,7 @@ export interface QueryMetrics {
   average_llm_latency_ms: number;
   average_total_latency_ms: number;
   average_retrieval_count: number;
+  average_citation_count: number;
 }
 
 export interface SourceFilePreview {
@@ -357,9 +360,9 @@ export const api = {
 
   submitFeedback: async (
     repoId: string,
-    payload: { question: string; rating: FeedbackRating; model: string; retrieval_count: number }
+    payload: { question: string; rating: FeedbackRating; model: string; retrieval_count: number; citation_count: number }
   ): Promise<void> => {
-    await client.post(`/repos/${repoId}/feedback`, payload);
+      await client.post(`/repos/${repoId}/feedback`, payload);
   },
 
   getFeedbackSummary: async (repoId: string): Promise<FeedbackSummary> => {
