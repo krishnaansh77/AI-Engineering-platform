@@ -1,13 +1,17 @@
 """Authentication endpoints for Phase 4."""
 import uuid
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse
+from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceInvitationCreate, WorkspaceInvitationResponse
 from app.database import get_db
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
+from app.models.workspace_invitation import WorkspaceInvitation
 from app.services.auth_service import create_access_token, decode_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -82,3 +86,31 @@ async def workspaces(user: User = Depends(get_current_user), db: AsyncSession = 
         .order_by(Workspace.created_at)
     )
     return [WorkspaceResponse(id=workspace.id, name=workspace.name, slug=workspace.slug, role=role) for workspace, role in rows.all()]
+
+
+@router.post("/workspaces/{workspace_id}/invitations", response_model=WorkspaceInvitationResponse, status_code=status.HTTP_201_CREATED)
+async def create_invitation(workspace_id: uuid.UUID, payload: WorkspaceInvitationCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> WorkspaceInvitationResponse:
+    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == user.id))
+    if not membership or membership.role not in {"owner", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only workspace owners and admins can invite members.")
+    email = payload.email.strip().lower()
+    token = secrets.token_urlsafe(32)
+    invitation = WorkspaceInvitation(workspace_id=workspace_id, invited_by=user.id, email=email, role=payload.role, token_hash=hashlib.sha256(token.encode()).hexdigest(), expires_at=datetime.now(timezone.utc) + timedelta(days=7))
+    db.add(invitation)
+    await db.flush()
+    return WorkspaceInvitationResponse(id=invitation.id, workspace_id=workspace_id, email=email, role=invitation.role, expires_at=invitation.expires_at, invite_token=token)
+
+
+@router.post("/invitations/accept", response_model=WorkspaceResponse)
+async def accept_invitation(token: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> WorkspaceResponse:
+    token_hash = hashlib.sha256(token.strip().encode()).hexdigest()
+    invitation = await db.scalar(select(WorkspaceInvitation).where(WorkspaceInvitation.token_hash == token_hash))
+    now = datetime.now(timezone.utc)
+    if not invitation or invitation.accepted_at is not None or invitation.expires_at <= now or invitation.email != user.email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invitation is invalid, expired, already accepted, or addressed to another email.")
+    existing = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.workspace_id == invitation.workspace_id, WorkspaceMember.user_id == user.id))
+    if not existing:
+        db.add(WorkspaceMember(workspace_id=invitation.workspace_id, user_id=user.id, role=invitation.role))
+    invitation.accepted_at = now
+    workspace = await db.get(Workspace, invitation.workspace_id)
+    return WorkspaceResponse(id=workspace.id, name=workspace.name, slug=workspace.slug, role=invitation.role)

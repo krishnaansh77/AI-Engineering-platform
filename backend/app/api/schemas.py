@@ -41,6 +41,20 @@ class WorkspaceResponse(BaseModel):
     role: str
 
 
+class WorkspaceInvitationCreate(BaseModel):
+    email: str = Field(..., min_length=3, max_length=320)
+    role: Literal["member", "admin"] = "member"
+
+
+class WorkspaceInvitationResponse(BaseModel):
+    id: uuid.UUID
+    workspace_id: uuid.UUID
+    email: str
+    role: str
+    expires_at: datetime
+    invite_token: Optional[str] = None
+
+
 class RepositoryResponse(BaseModel):
     """Public representation of a connected repository."""
     model_config = ConfigDict(from_attributes=True)
