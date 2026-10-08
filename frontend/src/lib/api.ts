@@ -66,6 +66,23 @@ export interface GitHistory {
   count: number;
 }
 
+export interface ArchitectureLayer {
+  name: string;
+  file_count: number;
+  files: string[];
+}
+
+export interface ArchitectureLink {
+  source: string;
+  target: string;
+  edge_count: number;
+}
+
+export interface ArchitectureSummary {
+  layers: ArchitectureLayer[];
+  cross_layer_links: ArchitectureLink[];
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -146,6 +163,11 @@ export const api = {
 
   getHistory: async (id: string, limit = 20): Promise<GitHistory> => {
     const { data } = await client.get<GitHistory>(`/repos/${id}/history`, { params: { limit } });
+    return data;
+  },
+
+  getArchitecture: async (id: string): Promise<ArchitectureSummary> => {
+    const { data } = await client.get<ArchitectureSummary>(`/repos/${id}/architecture`);
     return data;
   },
 

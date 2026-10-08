@@ -67,6 +67,58 @@ class DependencyGraphService:
             "edge_count": len(edge_list),
         }
 
+    async def build_architecture_summary(
+        self, repo_id: uuid.UUID, db: AsyncSession
+    ) -> dict:
+        """Summarize inferred repository layers and cross-layer dependencies."""
+        graph = await self.build_file_graph(repo_id, db)
+        layer_files: Dict[str, List[str]] = {}
+        file_layers: Dict[str, str] = {}
+        for node in graph["nodes"]:
+            layer = self.classify_layer(node["file_path"])
+            file_layers[node["id"]] = layer
+            layer_files.setdefault(layer, []).append(node["file_path"])
+
+        cross_layer_edges: Dict[Tuple[str, str], int] = {}
+        for edge in graph["edges"]:
+            source_layer = file_layers[edge["source"]]
+            target_layer = file_layers[edge["target"]]
+            if source_layer != target_layer:
+                key = (source_layer, target_layer)
+                cross_layer_edges[key] = cross_layer_edges.get(key, 0) + 1
+
+        layers = [
+            {
+                "name": name,
+                "file_count": len(paths),
+                "files": sorted(paths)[:8],
+            }
+            for name, paths in sorted(layer_files.items(), key=lambda item: (-len(item[1]), item[0]))
+        ]
+        links = [
+            {"source": source, "target": target, "edge_count": count}
+            for (source, target), count in sorted(cross_layer_edges.items())
+        ]
+        return {"layers": layers, "cross_layer_links": links}
+
+    @staticmethod
+    def classify_layer(file_path: str) -> str:
+        """Infer a useful architecture layer from a repository-relative path."""
+        normalized = file_path.lower().replace("\\", "/")
+        parts = set(normalized.split("/"))
+        name = normalized.rsplit("/", 1)[-1]
+        if "test" in name or "tests" in parts or "__tests__" in parts:
+            return "tests"
+        if "frontend" in parts or normalized.startswith("src/"):
+            return "frontend"
+        if "backend" in parts or "api" in parts or "services" in parts:
+            return "backend"
+        if name.endswith((".md", ".mdx")):
+            return "documentation"
+        if name in {"package.json", "pyproject.toml", "dockerfile", "docker-compose.yml"}:
+            return "configuration"
+        return "other"
+
     @staticmethod
     def resolve_import(
         source_path: str, import_text: str, known_paths: Set[str]
