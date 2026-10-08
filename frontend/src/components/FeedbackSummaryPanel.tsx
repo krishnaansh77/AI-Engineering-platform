@@ -14,6 +14,7 @@ export default function FeedbackSummaryPanel({ repoId }: { repoId: string }) {
 
   if (error || !summary || summary.total === 0) return null;
   const helpfulPercent = Math.round(summary.helpful_rate * 100);
+  const citationCoveragePercent = Math.round(summary.citation_coverage_rate * 100);
 
   return (
     <section className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-5">
@@ -22,11 +23,12 @@ export default function FeedbackSummaryPanel({ repoId }: { repoId: string }) {
         <h2 className="text-sm font-semibold text-slate-700">Answer Quality Signals</h2>
       </div>
       <p className="text-xs text-slate-500 mb-4">Based on {summary.total} explicit answer rating{summary.total === 1 ? "" : "s"}.</p>
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <Metric icon={<ThumbsUp className="w-3.5 h-3.5" />} label="Helpful rate" value={`${helpfulPercent}%`} />
         <Metric icon={<MessageCircle className="w-3.5 h-3.5" />} label="Helpful" value={summary.helpful} />
         <Metric icon={<BarChart3 className="w-3.5 h-3.5" />} label="Avg. sources" value={summary.average_retrieval_count} />
         <Metric icon={<MessageCircle className="w-3.5 h-3.5" />} label="Avg. citations" value={summary.average_citation_count} />
+        <Metric icon={<MessageCircle className="w-3.5 h-3.5" />} label="Cited answers" value={`${citationCoveragePercent}%`} />
       </div>
     </section>
   );
