@@ -61,6 +61,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Expanded boundary tests for GitHub retries/filtering, parser fallbacks, schema errors, dependency graph behavior, caching keys, and PR diff analysis
 - Opt-in heuristic secret scan with redacted file/line findings and no automatic indexing-time execution
 - GitHub Actions CI for backend tests, frontend production builds, and repository hygiene checks without provider secrets
+- Accessibility polish across Phase 3 panels: labels for controls, visible keyboard focus states, and live alert/status regions
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
 - Per-case and average retrieval latency in evaluation results
@@ -110,7 +111,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 2. Add API rate limits and request-size limits where appropriate — baseline protection complete; endpoint-specific limits and broader tests remain.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
-5. Improve accessibility and responsive behavior across the repository detail page.
+5. Improve accessibility and responsive behavior across the repository detail page — baseline labels, focus states, live regions, and responsive Phase 3 controls complete; a full WCAG audit remains future work.
 
 ### CI status
 
