@@ -1,3 +1,4 @@
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 from typing import List
@@ -10,6 +11,16 @@ class Settings(BaseSettings):
 
     # ── Database ──────────────────────────────────────────────────────────────
     DATABASE_URL: str = "postgresql+asyncpg://aise:aise_secret@localhost:5432/aise_db"
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def use_async_postgres_driver(cls, value: str) -> str:
+        """Accept Railway's standard URL while keeping SQLAlchemy async-safe."""
+        if value.startswith("postgres://"):
+            return "postgresql+asyncpg://" + value.removeprefix("postgres://")
+        if value.startswith("postgresql://"):
+            return "postgresql+asyncpg://" + value.removeprefix("postgresql://")
+        return value
 
     # ── Redis / Celery ────────────────────────────────────────────────────────
     REDIS_URL: str = "redis://localhost:6379/0"
