@@ -19,10 +19,10 @@ Use the repository’s existing Dockerfile from each service root. Railway suppo
 Set these on both `backend` and `worker`:
 
 ```text
-DATABASE_URL=${{postgres.DATABASE_URL}}
-REDIS_URL=${{redis.REDIS_URL}}
-CELERY_BROKER_URL=${{redis.REDIS_URL}}
-CELERY_RESULT_BACKEND=${{redis.REDIS_URL}}
+DATABASE_URL=${{Postgres.DATABASE_URL}}
+REDIS_URL=${{Redis.REDIS_URL}}
+CELERY_BROKER_URL=${{Redis.REDIS_URL}}
+CELERY_RESULT_BACKEND=${{Redis.REDIS_URL}}
 LLM_PROVIDER=gemini
 EMBEDDING_PROVIDER=gemini
 GOOGLE_API_KEY=<Railway secret>
@@ -41,10 +41,15 @@ Attach a persistent Railway volume to `backend` and `worker` at `/repos` if repo
 ## Frontend variables
 
 ```text
-NEXT_PUBLIC_API_URL=https://<backend-public-domain>
+NEXT_PUBLIC_API_URL=/api
+BACKEND_URL=https://<backend-public-domain>
 ```
 
-After the frontend domain is generated, set the backend variable:
+The frontend calls `/api` on its own origin. Next.js rewrites those requests to
+`BACKEND_URL`, so the browser does not depend on cross-origin API calls.
+
+After the frontend domain is generated, set the backend variable for local and
+direct API clients:
 
 ```text
 CORS_ORIGINS=https://<frontend-public-domain>
@@ -58,9 +63,11 @@ CORS_ORIGINS=https://<frontend-public-domain>
 4. Configure backend variables and add its public domain.
 5. Run `alembic upgrade head` as a one-time backend migration command.
 6. Add the worker service from the same repository with root directory `/backend`.
-7. Add the frontend service with root directory `/frontend`.
-8. Restrict backend `CORS_ORIGINS` to the frontend domain.
-9. Verify `/health`, indexing, search, Q&A, citations, feedback, and worker indexing.
+7. Configure the worker start command and Railway-linked PostgreSQL/Redis variables.
+8. Add the frontend service with root directory `/frontend`.
+9. Configure `/api` + `BACKEND_URL`, then generate the frontend public domain.
+10. Restrict backend `CORS_ORIGINS` to the frontend domain.
+11. Verify `/health`, indexing, search, Q&A, citations, feedback, and worker indexing.
 
 ## CLI commands after authentication
 
@@ -73,6 +80,13 @@ railway environment edit --service-config frontend source.rootDirectory /fronten
 
 Do not put secret values in shell history or commit them. Prefer Railway’s Variables UI.
 
-## Current blocker
+## Current deployment
 
-No Railway project has been created or authorized from this workspace yet. Deployment can begin once Railway CLI/dashboard access is authenticated and the destination project is selected.
+Railway project is active in production. The current public domains are:
+
+- Frontend: `https://zoological-mercy-production-8922.up.railway.app`
+- Backend: `https://ai-engineering-platform-production.up.railway.app`
+
+The backend, worker, PostgreSQL, Redis, and frontend services have all been
+verified Online. Keep `GOOGLE_API_KEY` and `SECRET_KEY` in Railway’s secret
+variables only; never put them in this file or in Git.
