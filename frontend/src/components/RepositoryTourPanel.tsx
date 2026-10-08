@@ -14,7 +14,7 @@ export default function RepositoryTourPanel({ repoId }: { repoId: string }) {
 
   if (!tour) return null;
 
-  const reportUrl = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"}/repos/${repoId}/report.md`;
+  const reportUrl = `${process.env.NEXT_PUBLIC_API_URL || "/api"}/repos/${repoId}/report.md`;
 
   return (
     <section className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-5">

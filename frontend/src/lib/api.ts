@@ -1,6 +1,9 @@
 import axios from "axios";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+// Browser requests stay same-origin and are proxied by Next.js. This avoids
+// exposing deployment topology to the client and keeps CORS out of the
+// critical request path.
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "/api";
 
 const client = axios.create({
   baseURL: BASE_URL,
