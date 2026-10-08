@@ -62,6 +62,14 @@ class WorkspaceInvitationResponse(BaseModel):
     role: str
     expires_at: datetime
     invite_token: Optional[str] = None
+    accepted_at: Optional[datetime] = None
+
+
+class WorkspaceMemberResponse(BaseModel):
+    user_id: uuid.UUID
+    email: str
+    role: str
+    created_at: datetime
 
 
 class RepositoryResponse(BaseModel):

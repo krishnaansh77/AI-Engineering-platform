@@ -77,7 +77,8 @@ export interface AuthUser { id: string; email: string; role: string; }
 export interface AuthResponse { access_token: string; token_type: string; user: AuthUser; }
 export interface Workspace { id: string; name: string; slug: string; role: string; }
 export interface WorkspaceCreateResponse extends Workspace {}
-export interface WorkspaceInvitation { id: string; workspace_id: string; email: string; role: string; expires_at: string; invite_token?: string | null; }
+export interface WorkspaceInvitation { id: string; workspace_id: string; email: string; role: string; expires_at: string; accepted_at?: string | null; invite_token?: string | null; }
+export interface WorkspaceMember { user_id: string; email: string; role: string; created_at: string; }
 
 export type FeedbackRating = "helpful" | "not_helpful";
 
@@ -383,6 +384,20 @@ export const api = {
 
   acceptWorkspaceInvitation: async (token: string): Promise<Workspace> => {
     const { data } = await client.post<Workspace>("/auth/invitations/accept", null, { params: { token } });
+    return data;
+  },
+
+  listWorkspaceInvitations: async (workspaceId: string): Promise<WorkspaceInvitation[]> => {
+    const { data } = await client.get<WorkspaceInvitation[]>(`/auth/workspaces/${workspaceId}/invitations`);
+    return data;
+  },
+
+  revokeWorkspaceInvitation: async (workspaceId: string, invitationId: string): Promise<void> => {
+    await client.delete(`/auth/workspaces/${workspaceId}/invitations/${invitationId}`);
+  },
+
+  listWorkspaceMembers: async (workspaceId: string): Promise<WorkspaceMember[]> => {
+    const { data } = await client.get<WorkspaceMember[]>(`/auth/workspaces/${workspaceId}/members`);
     return data;
   },
 

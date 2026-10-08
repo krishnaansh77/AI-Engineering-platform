@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceCreate, WorkspaceUpdate, WorkspaceInvitationCreate, WorkspaceInvitationResponse
+from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceCreate, WorkspaceUpdate, WorkspaceInvitationCreate, WorkspaceInvitationResponse, WorkspaceMemberResponse
 from app.database import get_db
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
@@ -143,7 +143,38 @@ async def create_invitation(workspace_id: uuid.UUID, payload: WorkspaceInvitatio
     invitation = WorkspaceInvitation(workspace_id=workspace_id, invited_by=user.id, email=email, role=payload.role, token_hash=hashlib.sha256(token.encode()).hexdigest(), expires_at=datetime.now(timezone.utc) + timedelta(days=7))
     db.add(invitation)
     await db.flush()
-    return WorkspaceInvitationResponse(id=invitation.id, workspace_id=workspace_id, email=email, role=invitation.role, expires_at=invitation.expires_at, invite_token=token)
+    return WorkspaceInvitationResponse(id=invitation.id, workspace_id=workspace_id, email=email, role=invitation.role, expires_at=invitation.expires_at, invite_token=token, accepted_at=invitation.accepted_at)
+
+
+async def _require_workspace_admin(workspace_id: uuid.UUID, user: User, db: AsyncSession) -> WorkspaceMember:
+    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == user.id))
+    if not membership or membership.role not in {"owner", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only workspace owners and admins can manage workspace members.")
+    return membership
+
+
+@router.get("/workspaces/{workspace_id}/invitations", response_model=list[WorkspaceInvitationResponse])
+async def list_invitations(workspace_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> list[WorkspaceInvitationResponse]:
+    await _require_workspace_admin(workspace_id, user, db)
+    rows = await db.scalars(select(WorkspaceInvitation).where(WorkspaceInvitation.workspace_id == workspace_id, WorkspaceInvitation.accepted_at.is_(None)).order_by(WorkspaceInvitation.created_at.desc()))
+    return [WorkspaceInvitationResponse(id=item.id, workspace_id=item.workspace_id, email=item.email, role=item.role, expires_at=item.expires_at, accepted_at=item.accepted_at) for item in rows.all()]
+
+
+@router.delete("/workspaces/{workspace_id}/invitations/{invitation_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def revoke_invitation(workspace_id: uuid.UUID, invitation_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> None:
+    await _require_workspace_admin(workspace_id, user, db)
+    invitation = await db.scalar(select(WorkspaceInvitation).where(WorkspaceInvitation.id == invitation_id, WorkspaceInvitation.workspace_id == workspace_id, WorkspaceInvitation.accepted_at.is_(None)))
+    if not invitation:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pending invitation not found.")
+    await db.delete(invitation)
+    await db.commit()
+
+
+@router.get("/workspaces/{workspace_id}/members", response_model=list[WorkspaceMemberResponse])
+async def list_members(workspace_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> list[WorkspaceMemberResponse]:
+    await _require_workspace_admin(workspace_id, user, db)
+    rows = await db.execute(select(WorkspaceMember, User.email).join(User, User.id == WorkspaceMember.user_id).where(WorkspaceMember.workspace_id == workspace_id).order_by(WorkspaceMember.created_at))
+    return [WorkspaceMemberResponse(user_id=membership.user_id, email=email, role=membership.role, created_at=membership.created_at) for membership, email in rows.all()]
 
 
 @router.post("/invitations/accept", response_model=WorkspaceResponse)
