@@ -154,7 +154,7 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
 
 - Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migrations `003_users` and `004_repository_owners`, repository ownership, and a frontend account screen. Repository and query APIs now require authentication; authenticated members can connect, re-index, and delete their own repositories; admins/owners retain global mutation access. The frontend redirects unauthenticated API requests to `/auth`. Ownership migration is applied locally and Alembic is at head.
 - Authentication hardening — complete: `/auth/*` requests now use a dedicated low per-minute Redis rate limit, with regression coverage for login throttling and existing API limits.
-- Multi-repository workspaces — foundation complete: migration `005_workspaces` adds workspaces and memberships, new accounts receive a default owner workspace, and newly connected repositories are attached to it. Existing repositories remain compatible while workspace management UI and invitations are future extensions.
+- Multi-repository workspaces — foundation complete: migration `005_workspaces` adds workspaces and memberships, new accounts receive a default owner workspace, newly connected repositories are attached to it, and `/auth/workspaces` plus the account page expose memberships and roles. Existing repositories remain compatible while invitations and workspace switching are future extensions.
 - Multi-repository workspaces — foundation complete; invitations, workspace switching, and management UI remain future extensions.
 - GitHub App instead of PAT-only access
 - Full PR and branch comparison

@@ -34,6 +34,13 @@ class AuthResponse(BaseModel):
     user: UserResponse
 
 
+class WorkspaceResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    slug: str
+    role: str
+
+
 class RepositoryResponse(BaseModel):
     """Public representation of a connected repository."""
     model_config = ConfigDict(from_attributes=True)

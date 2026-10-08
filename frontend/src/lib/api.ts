@@ -74,6 +74,7 @@ export interface QueryResponse {
 
 export interface AuthUser { id: string; email: string; role: string; }
 export interface AuthResponse { access_token: string; token_type: string; user: AuthUser; }
+export interface Workspace { id: string; name: string; slug: string; role: string; }
 
 export type FeedbackRating = "helpful" | "not_helpful";
 
@@ -353,6 +354,11 @@ export const api = {
 
   login: async (email: string, password: string): Promise<AuthResponse> => {
     const { data } = await client.post<AuthResponse>("/auth/login", { email, password });
+    return data;
+  },
+
+  listWorkspaces: async (): Promise<Workspace[]> => {
+    const { data } = await client.get<Workspace[]>("/auth/workspaces");
     return data;
   },
 

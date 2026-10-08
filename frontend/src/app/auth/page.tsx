@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { api, getErrorMessage } from "@/lib/api";
+import { api, getErrorMessage, Workspace } from "@/lib/api";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -10,6 +10,7 @@ export default function AuthPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -18,6 +19,7 @@ export default function AuthPage() {
       const result = mode === "login" ? await api.login(email, password) : await api.register(email, password);
       localStorage.setItem("aise_access_token", result.access_token);
       setMessage(`Signed in as ${result.user.email} (${result.user.role}).`);
+      setWorkspaces(await api.listWorkspaces());
       const next = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
       if (next && next.startsWith("/")) window.location.href = next;
     } catch (reason) { setError(getErrorMessage(reason)); }
@@ -35,6 +37,7 @@ export default function AuthPage() {
           <button type="submit" disabled={loading} className="w-full px-4 py-2 rounded-lg bg-sky-600 text-white text-sm disabled:opacity-50">{loading ? "Working..." : mode === "login" ? "Sign in" : "Create account"}</button>
         </form>
         {message && <p role="status" className="mt-4 text-sm text-emerald-700">{message}</p>}
+        {workspaces.length > 0 && <div className="mt-4 border border-slate-200 rounded-lg p-3"><p className="text-xs font-semibold text-slate-700">Your workspaces</p>{workspaces.map((workspace) => <p key={workspace.id} className="text-xs text-slate-600 mt-1">{workspace.name} · {workspace.role}</p>)}</div>}
         {error && <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>}
         <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(null); setError(null); }} className="mt-5 text-sm text-sky-700 underline">{mode === "login" ? "Create a new account" : "Use an existing account"}</button>
       </div>
