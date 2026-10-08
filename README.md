@@ -30,8 +30,8 @@ Answer + Source Citations (file · function · lines)
 |-------|----------|--------|
 | **Phase 1** | GitHub integration · Code parsing · Hybrid RAG · Q&A · Citations | ✅ Complete |
 | **Phase 2** | Dependency graph · Architecture explorer · Git history · Change impact | ✅ Complete |
-| **Phase 3** | PR analysis · Onboarding · Issue intelligence · Test coverage · Debt | 🔲 Planned |
-| **Phase 4** | RBAC · RAG eval · Multi-repo · Agents · Observability · Local LLM | 🔲 Planned |
+| **Phase 3** | PR comparison · Issue intelligence · RAG evaluation · Documentation previews · Quality signals | 🟡 In progress |
+| **Phase 4** | RBAC · Multi-repo · GitHub App · Agents · Observability · Local LLM | 🔲 Future |
 
 ---
 
@@ -55,13 +55,17 @@ cp .env.example .env
 # Edit .env — fill in the provider key and GITHUB_PAT when indexing private repositories
 
 # 3. Start everything
-docker-compose up --build
+docker compose up --build -d
 
 # 4. Open the UI
 open http://localhost:3000
 
-# 5. Run database migrations (first time only)
-docker-compose exec backend alembic upgrade head
+# 5. Run database migrations
+docker compose exec backend alembic upgrade head
+
+# 6. Verify the local stack
+docker compose exec backend python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/health').read().decode())"
+docker compose exec redis redis-cli ping
 ```
 
 ### Usage
@@ -130,5 +134,11 @@ EMBEDDING_PROVIDER=openai  # or: local (Phase 4, Ollama)
 
 ## Contributing / Continuing
 
-See `PROJECT_JOURNAL.md` for the full history of decisions and milestones.
-See `PHASES.md` for the current task checklist.
+See `PROJECT_PLAN.md` for the current implementation status, verified baseline, and future roadmap.
+See `PHASES.md` for the detailed phase checklist.
+
+## Security notes
+
+- Keep `.env` local and never commit provider keys or GitHub PATs.
+- Gemini/API quota failures are surfaced as retryable errors; local mock providers are available for CI.
+- Secret scanning is opt-in and heuristic. It reports redacted file/line findings and does not replace a dedicated security scanner.
