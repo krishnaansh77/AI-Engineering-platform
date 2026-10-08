@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceCreate, WorkspaceUpdate, WorkspaceInvitationCreate, WorkspaceInvitationResponse
 from app.database import get_db
@@ -71,6 +71,22 @@ def assert_repository_owner(user: User, owner_id: uuid.UUID | None) -> None:
     """Allow admins/owners globally; members may mutate their own repositories."""
     if owner_id is not None and user.role not in {"owner", "admin"} and owner_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission to modify this repository.")
+
+
+async def require_repository_access(repo_id: uuid.UUID, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Require global admin access or membership in the repository's workspace."""
+    from app.models.repository import Repository
+
+    if user.role in {"owner", "admin"}:
+        stmt = select(Repository).where(Repository.id == repo_id)
+    else:
+        access = or_(
+            Repository.owner_id == user.id,
+            Repository.workspace_id.in_(select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user.id)),
+        )
+        stmt = select(Repository).where(Repository.id == repo_id, access)
+    if not await db.scalar(stmt):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
 
 
 @router.get("/me", response_model=UserResponse)

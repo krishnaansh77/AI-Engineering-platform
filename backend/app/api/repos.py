@@ -37,7 +37,7 @@ from app.services.github_service import GitHubService
 from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
 from app.services.secret_scan_service import SecretScanService
-from app.api.auth import assert_repository_owner, get_current_user, require_roles
+from app.api.auth import assert_repository_owner, get_current_user, require_repository_access, require_roles
 from app.models.user import User
 from app.models.workspace import WorkspaceMember
 
@@ -165,7 +165,7 @@ async def list_repositories(
     return list(result.scalars().all())
 
 
-@router.get("/{repo_id}", response_model=RepositoryResponse)
+@router.get("/{repo_id}", response_model=RepositoryResponse, dependencies=[Depends(require_repository_access)])
 async def get_repository(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -182,7 +182,7 @@ async def get_repository(
     return repo
 
 
-@router.post("/{repo_id}/reindex", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/{repo_id}/reindex", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(require_repository_access)])
 async def reindex_repository(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -207,7 +207,7 @@ async def reindex_repository(
     return {"message": "Reindexing triggered successfully", "repository_id": str(repo_id)}
 
 
-@router.delete("/{repo_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{repo_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_repository_access)])
 async def delete_repository(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -227,7 +227,7 @@ async def delete_repository(
     await db.commit()
 
 
-@router.get("/{repo_id}/stats", response_model=RepoStatsResponse)
+@router.get("/{repo_id}/stats", response_model=RepoStatsResponse, dependencies=[Depends(require_repository_access)])
 async def get_repository_stats(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -250,7 +250,7 @@ async def get_repository_stats(
     )
 
 
-@router.get("/{repo_id}/files", response_model=List[SourceFileResponse])
+@router.get("/{repo_id}/files", response_model=List[SourceFileResponse], dependencies=[Depends(require_repository_access)])
 async def list_repository_files(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -261,7 +261,7 @@ async def list_repository_files(
     return list(result.scalars().all())
 
 
-@router.get("/{repo_id}/graph/files")
+@router.get("/{repo_id}/graph/files", dependencies=[Depends(require_repository_access)])
 async def get_file_dependency_graph(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -282,7 +282,7 @@ async def get_file_dependency_graph(
     return await DependencyGraphService().build_file_graph(repo_id, db)
 
 
-@router.get("/{repo_id}/history")
+@router.get("/{repo_id}/history", dependencies=[Depends(require_repository_access)])
 async def get_repository_history(
     repo_id: uuid.UUID,
     limit: int = 20,
@@ -310,7 +310,7 @@ async def get_repository_history(
     return {"commits": commits, "count": len(commits)}
 
 
-@router.get("/{repo_id}/source/{file_path:path}")
+@router.get("/{repo_id}/source/{file_path:path}", dependencies=[Depends(require_repository_access)])
 async def get_repository_source_file(
     repo_id: uuid.UUID,
     file_path: str,
@@ -333,7 +333,7 @@ async def get_repository_source_file(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
 
 
-@router.get("/{repo_id}/architecture")
+@router.get("/{repo_id}/architecture", dependencies=[Depends(require_repository_access)])
 async def get_repository_architecture(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -348,7 +348,7 @@ async def get_repository_architecture(
     return await DependencyGraphService().build_architecture_summary(repo_id, db)
 
 
-@router.get("/{repo_id}/test-intelligence")
+@router.get("/{repo_id}/test-intelligence", dependencies=[Depends(require_repository_access)])
 async def get_test_intelligence(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -363,7 +363,7 @@ async def get_test_intelligence(
     return await DependencyGraphService().build_test_summary(repo_id, db)
 
 
-@router.get("/{repo_id}/tour")
+@router.get("/{repo_id}/tour", dependencies=[Depends(require_repository_access)])
 async def get_repository_tour(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -378,7 +378,7 @@ async def get_repository_tour(
     return await DependencyGraphService().build_repository_tour(repo_id, db)
 
 
-@router.get("/{repo_id}/documentation")
+@router.get("/{repo_id}/documentation", dependencies=[Depends(require_repository_access)])
 async def get_repository_documentation(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -395,7 +395,7 @@ async def get_repository_documentation(
     return {"documents": GitHubService().list_documentation_files(repository.clone_path)}
 
 
-@router.post("/{repo_id}/security/secrets/scan")
+@router.post("/{repo_id}/security/secrets/scan", dependencies=[Depends(require_repository_access)])
 async def scan_repository_secrets(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -411,7 +411,7 @@ async def scan_repository_secrets(
     return SecretScanService().scan(repository.clone_path, files)
 
 
-@router.post("/{repo_id}/documentation/generate-preview")
+@router.post("/{repo_id}/documentation/generate-preview", dependencies=[Depends(require_repository_access)])
 async def generate_documentation_preview(
     repo_id: uuid.UUID,
     payload: DocumentationPreviewRequest,
@@ -449,7 +449,7 @@ async def generate_documentation_preview(
     }
 
 
-@router.post("/{repo_id}/documentation/save")
+@router.post("/{repo_id}/documentation/save", dependencies=[Depends(require_repository_access)])
 async def save_documentation(
     repo_id: uuid.UUID,
     payload: DocumentationSaveRequest,
@@ -481,7 +481,7 @@ async def save_documentation(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=error_detail("GITHUB_WRITE_FAILED", "GitHub rejected the documentation save. Verify the branch, permissions, and current file state.", True)) from exc
 
 
-@router.get("/{repo_id}/pr-analysis/latest")
+@router.get("/{repo_id}/pr-analysis/latest", dependencies=[Depends(require_repository_access)])
 async def analyze_latest_repository_change(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -502,7 +502,7 @@ async def analyze_latest_repository_change(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Latest change is unavailable.")
 
 
-@router.get("/{repo_id}/pr-analysis/commit/{commit_sha}")
+@router.get("/{repo_id}/pr-analysis/commit/{commit_sha}", dependencies=[Depends(require_repository_access)])
 async def analyze_repository_commit(
     repo_id: uuid.UUID,
     commit_sha: str,
@@ -522,7 +522,7 @@ async def analyze_repository_commit(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Commit is unavailable in the local clone.") from exc
 
 
-@router.post("/{repo_id}/pr-analysis/compare")
+@router.post("/{repo_id}/pr-analysis/compare", dependencies=[Depends(require_repository_access)])
 async def compare_repository_changes(
     repo_id: uuid.UUID,
     payload: PRComparisonRequest,
@@ -548,7 +548,7 @@ async def compare_repository_changes(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_detail("COMMIT_REF_UNAVAILABLE", "Base or head commit is unavailable in the local clone.", False)) from exc
 
 
-@router.get("/{repo_id}/technical-debt")
+@router.get("/{repo_id}/technical-debt", dependencies=[Depends(require_repository_access)])
 async def get_technical_debt_signals(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -563,7 +563,7 @@ async def get_technical_debt_signals(
     return await DependencyGraphService().build_debt_summary(repo_id, db)
 
 
-@router.get("/{repo_id}/documentation/quality")
+@router.get("/{repo_id}/documentation/quality", dependencies=[Depends(require_repository_access)])
 async def get_documentation_quality(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
@@ -578,7 +578,7 @@ async def get_documentation_quality(
     return await DependencyGraphService().build_documentation_quality(repo_id, db)
 
 
-@router.get("/{repo_id}/issues")
+@router.get("/{repo_id}/issues", dependencies=[Depends(require_repository_access)])
 async def list_repository_issues(
     repo_id: uuid.UUID,
     limit: int = 20,
@@ -603,7 +603,7 @@ async def list_repository_issues(
     return {"issues": issues, "cached": False, "state": state}
 
 
-@router.get("/{repo_id}/issues/{issue_number}/analysis")
+@router.get("/{repo_id}/issues/{issue_number}/analysis", dependencies=[Depends(require_repository_access)])
 async def analyze_repository_issue(
     repo_id: uuid.UUID,
     issue_number: int,
@@ -645,7 +645,7 @@ async def analyze_repository_issue(
     }
 
 
-@router.get("/{repo_id}/report.md", response_class=PlainTextResponse)
+@router.get("/{repo_id}/report.md", response_class=PlainTextResponse, dependencies=[Depends(require_repository_access)])
 async def export_repository_report(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
