@@ -30,3 +30,7 @@ class TestSearchSchema(unittest.TestCase):
             {"recall": 0.0, "reciprocal_rank": 0.0, "retrieval_latency_ms": 40.0},
         ])
         self.assertEqual(result["average_retrieval_latency_ms"], 30.0)
+        self.assertEqual(result["expected_file_hit_rate"], 0.5)
+
+    def test_empty_aggregate_has_expected_file_hit_rate(self):
+        self.assertEqual(aggregate_scores([])["expected_file_hit_rate"], 0.0)

@@ -253,7 +253,7 @@ export interface IssueAnalysis {
 }
 
 export interface EvaluationRun {
-  summary: { recall_at_k: number; mrr: number; average_retrieval_latency_ms: number; case_count: number };
+  summary: { recall_at_k: number; mrr: number; expected_file_hit_rate: number; average_retrieval_latency_ms: number; case_count: number };
   cases: Array<{ question: string; expected_files: string[]; retrieved_files: string[]; retrieval_latency_ms: number; recall: number; reciprocal_rank: number; matched_files: string[] }>;
 }
 
