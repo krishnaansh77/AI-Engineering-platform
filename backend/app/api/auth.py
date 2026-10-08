@@ -14,6 +14,8 @@ from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.models.workspace_invitation import WorkspaceInvitation
 from app.services.auth_service import create_access_token, decode_access_token, hash_password, verify_password
+from app.config import settings
+from app.services.usage_service import current_llm_usage
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
 bearer = HTTPBearer(auto_error=False)
@@ -92,6 +94,11 @@ async def require_repository_access(repo_id: uuid.UUID, user: User = Depends(get
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(user)
+
+
+@router.get("/usage")
+async def usage(user: User = Depends(get_current_user)) -> dict:
+    return await current_llm_usage(settings.REDIS_URL, user.id, settings.LLM_DAILY_REQUEST_LIMIT)
 
 
 @router.get("/workspaces", response_model=list[WorkspaceResponse])

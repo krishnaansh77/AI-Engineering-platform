@@ -22,6 +22,7 @@ from app.services.llm_service import LLMService
 from app.services.retrieval_service import RetrievalService
 from app.services.query_cache import build_query_cache_key
 from app.services.evaluation_service import aggregate_scores, score_retrieval
+from app.services.usage_service import consume_llm_request
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["query"], dependencies=[Depends(get_current_user), Depends(require_repository_access)])
@@ -54,6 +55,7 @@ async def query_repository(
     repo_id: uuid.UUID,
     payload: QueryRequest,
     db: AsyncSession = Depends(get_db),
+    user = Depends(get_current_user),
 ) -> QueryResponse:
     """Ask a question about the repository codebase and receive an answer with source citations."""
     # Verify repository existence
@@ -88,6 +90,10 @@ async def query_repository(
     cached_response = await _read_cached_query(cache_key)
     if cached_response:
         return QueryResponse(**cached_response, cached=True)
+
+    allowed, _remaining = await consume_llm_request(settings.REDIS_URL, user.id, settings.LLM_DAILY_REQUEST_LIMIT)
+    if not allowed:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=error_detail("LLM_DAILY_LIMIT", "Your daily AI request budget is exhausted. Cached answers and code search remain available; retry after the quota window resets.", True))
 
     query_started = time.perf_counter()
     retrieval_started = time.perf_counter()

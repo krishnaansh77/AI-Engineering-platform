@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { api, getErrorMessage, Workspace, WorkspaceInvitation, WorkspaceMember } from "@/lib/api";
+import { api, getErrorMessage, Workspace, WorkspaceInvitation, WorkspaceMember, UsageSummary } from "@/lib/api";
 
 export default function AuthPage() {
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -18,6 +18,7 @@ export default function AuthPage() {
   const [renameWorkspaceId, setRenameWorkspaceId] = useState<string | null>(null);
   const [invitations, setInvitations] = useState<Record<string, WorkspaceInvitation[]>>({});
   const [members, setMembers] = useState<Record<string, WorkspaceMember[]>>({});
+  const [usage, setUsage] = useState<UsageSummary | null>(null);
 
   const loadWorkspaceAdminData = async (items: Workspace[]) => {
     const adminItems = items.filter((workspace) => workspace.role === "owner" || workspace.role === "admin");
@@ -41,6 +42,7 @@ export default function AuthPage() {
       const workspaceItems = await api.listWorkspaces();
       setWorkspaces(workspaceItems);
       await loadWorkspaceAdminData(workspaceItems);
+      setUsage(await api.getUsage());
       const next = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("next") : null;
       if (next && next.startsWith("/")) window.location.href = next;
     } catch (reason) { setError(getErrorMessage(reason)); }
@@ -128,6 +130,7 @@ export default function AuthPage() {
           <button type="submit" disabled={loading} className="w-full px-4 py-2 rounded-lg bg-sky-600 text-white text-sm disabled:opacity-50">{loading ? "Working..." : mode === "login" ? "Sign in" : "Create account"}</button>
         </form>
         {message && <p role="status" className="mt-4 text-sm text-emerald-700">{message}</p>}
+        {usage && <div className="mt-4 border border-slate-200 rounded-lg p-3 text-xs text-slate-600"><p className="font-semibold text-slate-700">AI usage today</p><p className="mt-1">{usage.used} used · {usage.remaining === null ? "unlimited" : `${usage.remaining} remaining`} of {usage.daily_limit === 0 ? "unlimited" : usage.daily_limit}</p></div>}
         {workspaces.length > 0 && <div className="mt-4 border border-slate-200 rounded-lg p-3"><p className="text-xs font-semibold text-slate-700">Your workspaces</p>{workspaces.map((workspace) => <div key={workspace.id} className="mt-2"><div className="flex items-center justify-between"><p className="text-xs text-slate-600">{workspace.name} · {workspace.role}</p>{(workspace.role === "owner" || workspace.role === "admin") && <button type="button" onClick={() => { setRenameWorkspaceId(workspace.id); void renameWorkspace(workspace); }} className="text-xs text-sky-700 underline">{renameWorkspaceId === workspace.id ? "Renaming..." : "Rename"}</button>}</div>{(workspace.role === "owner" || workspace.role === "admin") && <div className="flex gap-2 mt-1"><input aria-label={`Invite email for ${workspace.name}`} type="email" placeholder="teammate@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" /><button type="button" disabled={!inviteEmail.trim()} onClick={() => createInvite(workspace)} className="px-2 py-1 rounded bg-slate-700 text-white text-xs disabled:opacity-50">Create invite</button></div>}{(members[workspace.id] ?? []).map((member) => <div key={member.user_id} className="mt-2 flex items-center gap-2 text-[11px] text-slate-500"><span className="flex-1">{member.email}</span><select aria-label={`Role for ${member.email}`} value={member.role} disabled={member.role === "owner"} onChange={(event) => updateMember(workspace, member, event.target.value)} className="px-1 py-0.5 border border-slate-300 rounded text-[11px]"><option value="member">member</option><option value="admin">admin</option><option value="owner">owner</option></select>{member.role !== "owner" && <button type="button" onClick={() => removeMember(workspace, member)} className="text-red-600 underline">Remove</button>}</div>)}{(invitations[workspace.id] ?? []).map((invitation) => <div key={invitation.id} className="mt-2 flex items-center justify-between text-[11px] text-slate-500"><span>Pending: {invitation.email} · {invitation.role}</span><button type="button" onClick={() => revokeInvite(workspace, invitation)} className="text-red-600 underline">Revoke</button></div>)}</div>)}</div>}
         {workspaces.length > 0 && <div className="mt-3 flex gap-2"><input aria-label="New workspace name" value={workspaceName} onChange={(e) => setWorkspaceName(e.target.value)} placeholder="New workspace name" className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" /><button type="button" disabled={workspaceName.trim().length < 2} onClick={createWorkspace} className="px-2 py-1 rounded bg-sky-600 text-white text-xs disabled:opacity-50">Create workspace</button></div>}
         {generatedToken && <div role="status" className="mt-3 border border-amber-200 bg-amber-50 rounded-lg p-3"><p className="text-xs font-semibold text-amber-900">Share this invitation token</p><code className="block mt-1 break-all text-[11px] text-amber-800">{generatedToken}</code></div>}

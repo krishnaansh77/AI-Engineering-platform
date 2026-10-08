@@ -63,6 +63,7 @@ class Settings(BaseSettings):
     API_EXPENSIVE_RATE_LIMIT_PER_MINUTE: int = 30
     AUTH_RATE_LIMIT_PER_MINUTE: int = 10
     API_MAX_REQUEST_BYTES: int = 1_000_000
+    LLM_DAILY_REQUEST_LIMIT: int = 100
 
     # ── Storage ───────────────────────────────────────────────────────────────
     REPOS_CLONE_DIR: str = "/repos"

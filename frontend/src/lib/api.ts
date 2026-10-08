@@ -75,6 +75,7 @@ export interface QueryResponse {
 
 export interface AuthUser { id: string; email: string; role: string; }
 export interface AuthResponse { access_token: string; token_type: string; user: AuthUser; }
+export interface UsageSummary { used: number; daily_limit: number; remaining: number | null; }
 export interface Workspace { id: string; name: string; slug: string; role: string; }
 export interface WorkspaceCreateResponse extends Workspace {}
 export interface WorkspaceInvitation { id: string; workspace_id: string; email: string; role: string; expires_at: string; accepted_at?: string | null; invite_token?: string | null; }
@@ -359,6 +360,11 @@ export const api = {
 
   login: async (email: string, password: string): Promise<AuthResponse> => {
     const { data } = await client.post<AuthResponse>("/auth/login", { email, password });
+    return data;
+  },
+
+  getUsage: async (): Promise<UsageSummary> => {
+    const { data } = await client.get<UsageSummary>("/auth/usage");
     return data;
   },
 
