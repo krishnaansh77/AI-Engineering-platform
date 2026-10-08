@@ -4,10 +4,12 @@ import logging
 import uuid
 import git
 import httpx
+from datetime import datetime, timezone
 from typing import List
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import PlainTextResponse
 from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -471,3 +473,48 @@ async def analyze_repository_issue(
             for chunk in chunks
         ],
     }
+
+
+@router.get("/{repo_id}/report.md", response_class=PlainTextResponse)
+async def export_repository_report(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> PlainTextResponse:
+    """Export a structural repository intelligence report as Markdown."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before a report is available.")
+
+    graph_service = DependencyGraphService()
+    tour = await graph_service.build_repository_tour(repo_id, db)
+    architecture = await graph_service.build_architecture_summary(repo_id, db)
+    tests = await graph_service.build_test_summary(repo_id, db)
+    docs = await graph_service.build_documentation_quality(repo_id, db)
+    history = GitHubService().get_commit_history(repository.clone_path, 5) if repository.clone_path else []
+
+    lines = [
+        f"# Repository Intelligence Report: {repository.full_name}",
+        "",
+        f"Generated from the indexed repository on {datetime.now(timezone.utc).isoformat()}.",
+        "",
+        "## Summary",
+        f"- Files: {tour['file_count']}",
+        f"- Dependency relationships: {tour['relationship_count']}",
+        f"- Source symbols: {docs['symbol_count']}",
+        f"- Documentation coverage: {round(docs['coverage'] * 100)}%",
+        f"- Test-linked source files: {tests['tested_file_count']} / {tests['source_file_count']}",
+        "",
+        "## Architecture Layers",
+    ]
+    lines.extend(f"- **{layer['name']}**: {layer['file_count']} files" for layer in architecture["layers"])
+    lines.extend(["", "## Key Files"])
+    lines.extend(f"- `{item['file_path']}` — {item['connections']} connections ({item['layer']})" for item in tour["key_files"])
+    lines.extend(["", "## Documentation Gaps"])
+    lines.extend(f"- `{gap['file_path']}` — {gap['undocumented_symbols']} undocumented symbols" for gap in docs["gaps"][:10])
+    lines.extend(["", "## Recent Commits"])
+    lines.extend(f"- `{commit['short_sha']}` {commit['message']} ({commit['author']})" for commit in history)
+    lines.extend(["", "---", "This report contains structural signals and should be reviewed alongside runtime coverage and human code review."])
+    return PlainTextResponse("\n".join(lines), media_type="text/markdown")
