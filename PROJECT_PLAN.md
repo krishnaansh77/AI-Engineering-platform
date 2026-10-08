@@ -85,6 +85,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added a deterministic PostgreSQL/pgvector + Redis seeded benchmark job in CI
 - Surfaced answer citation coverage in the repository quality dashboard
 - Added accessible labels, live regions, alert semantics, and selection states across core repository and chat controls
+- Added explicit user-triggered Markdown export for generated documentation previews without automatic repository writes
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -116,7 +117,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
    - Generate a draft only on explicit user action for one selected source file.
    - Return citation metadata and show the draft in the UI before any save action.
    - Enforce a 50 KB source limit and a 1,200-token output limit; no automatic file writes are performed.
-   - Future work: add an explicit user-approved export/save flow with a diff and confirmation.
+   - Added explicit user-approved Markdown export/download; future work: add a repository save flow with a diff and confirmation.
 
 4. **RAG evaluation expansion**
    - Expanded the starter benchmark to 10 representative questions and added validation tests for benchmark files.
