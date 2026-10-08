@@ -280,12 +280,18 @@ async def get_feedback_summary(
             func.avg(QueryFeedback.retrieval_count),
             func.avg(QueryFeedback.citation_count),
             func.sum(case((QueryFeedback.citation_count > 0, 1), else_=0)),
+            func.avg(case((QueryFeedback.rating == "helpful", QueryFeedback.citation_count), else_=None)),
+            func.avg(case((QueryFeedback.rating == "not_helpful", QueryFeedback.citation_count), else_=None)),
+            func.sum(case(((QueryFeedback.rating == "helpful") & (QueryFeedback.citation_count > 0), 1), else_=0)),
+            func.sum(case(((QueryFeedback.rating == "not_helpful") & (QueryFeedback.citation_count > 0), 1), else_=0)),
         ).where(QueryFeedback.repository_id == repo_id)
     )
-    total, helpful, not_helpful, avg_retrieval, avg_citations, cited_answers = result.one()
+    total, helpful, not_helpful, avg_retrieval, avg_citations, cited_answers, helpful_avg_citations, not_helpful_avg_citations, helpful_cited, not_helpful_cited = result.one()
     total = int(total or 0)
     helpful = int(helpful or 0)
     not_helpful = int(not_helpful or 0)
+    helpful_cited = int(helpful_cited or 0)
+    not_helpful_cited = int(not_helpful_cited or 0)
     return {
         "total": total,
         "helpful": helpful,
@@ -294,6 +300,10 @@ async def get_feedback_summary(
         "average_retrieval_count": round(float(avg_retrieval), 2) if avg_retrieval is not None else 0,
         "average_citation_count": round(float(avg_citations), 2) if avg_citations is not None else 0,
         "citation_coverage_rate": round(int(cited_answers or 0) / total, 3) if total else 0,
+        "helpful_average_citation_count": round(float(helpful_avg_citations), 2) if helpful_avg_citations is not None else 0,
+        "not_helpful_average_citation_count": round(float(not_helpful_avg_citations), 2) if not_helpful_avg_citations is not None else 0,
+        "helpful_citation_coverage_rate": round(helpful_cited / helpful, 3) if helpful else 0,
+        "not_helpful_citation_coverage_rate": round(not_helpful_cited / not_helpful, 3) if not_helpful else 0,
     }
 
 

@@ -107,6 +107,10 @@ export interface FeedbackSummary {
   average_retrieval_count: number;
   average_citation_count: number;
   citation_coverage_rate: number;
+  helpful_average_citation_count: number;
+  not_helpful_average_citation_count: number;
+  helpful_citation_coverage_rate: number;
+  not_helpful_citation_coverage_rate: number;
 }
 
 export interface QueryMetrics {

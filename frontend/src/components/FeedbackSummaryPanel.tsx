@@ -30,6 +30,11 @@ export default function FeedbackSummaryPanel({ repoId }: { repoId: string }) {
         <Metric icon={<MessageCircle className="w-3.5 h-3.5" />} label="Avg. citations" value={summary.average_citation_count} />
         <Metric icon={<MessageCircle className="w-3.5 h-3.5" />} label="Cited answers" value={`${citationCoveragePercent}%`} />
       </div>
+      <p className="text-[11px] text-slate-500 mt-3">
+        Helpful answers average {summary.helpful_average_citation_count.toFixed(1)} citations
+        ({Math.round(summary.helpful_citation_coverage_rate * 100)}% cited) · unhelpful answers average {summary.not_helpful_average_citation_count.toFixed(1)} citations
+        ({Math.round(summary.not_helpful_citation_coverage_rate * 100)}% cited).
+      </p>
     </section>
   );
 }
