@@ -92,6 +92,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Fixed indexing progress step updates and exposed the active step through an accessible live status
 - Added helpful versus unhelpful citation coverage breakdowns for feedback-driven quality analysis
 - Added real PostgreSQL/pgvector endpoint smoke tests for retrieval evaluation and feedback citation aggregation, executed in the seeded CI job
+- Added reusable RAG evaluation documentation for repository-specific benchmarks
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -127,7 +128,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 
 4. **RAG evaluation expansion**
    - Expanded the starter benchmark to 10 representative questions and added validation tests for benchmark files.
-   - Remaining: tailor expected files to each target repository and expand to 10–20 questions per target repository.
+   - Added reusable instructions for tailoring expected files and running 10–20 question benchmarks per target repository; repository-specific benchmark authoring remains an owner-provided quality input.
    - Answer-level citation coverage, helpful-rate reporting, and helpful-versus-unhelpful citation breakdowns are now surfaced in the quality dashboard; remaining work is richer citation matching and retrieval tuning based on those signals.
    - CI validates the benchmark template and runs retrieval evaluation against a seeded PostgreSQL/pgvector repository.
 
