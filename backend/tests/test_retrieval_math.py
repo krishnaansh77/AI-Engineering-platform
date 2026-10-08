@@ -4,9 +4,15 @@ import uuid
 from types import SimpleNamespace
 
 from app.services.retrieval_service import _metadata_ranked_ids
+from app.services.indexing_service import _is_embedding_quota_error
 
 
 class TestRetrievalMath(unittest.TestCase):
+    def test_embedding_quota_detection_is_bounded(self):
+        self.assertTrue(_is_embedding_quota_error(RuntimeError("429 RESOURCE_EXHAUSTED")))
+        self.assertTrue(_is_embedding_quota_error(RuntimeError("provider quota exceeded")))
+        self.assertFalse(_is_embedding_quota_error(RuntimeError("invalid source file")))
+
     def test_metadata_ranking_prioritizes_named_service_files(self):
         target = uuid.uuid4()
         other = uuid.uuid4()

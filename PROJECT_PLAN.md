@@ -96,9 +96,10 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added real PostgreSQL/pgvector endpoint smoke tests for retrieval evaluation and feedback citation aggregation, executed in the seeded CI job
 - Added a PostgreSQL-backed indexing pipeline integration test with mocked external services
 - Added reusable RAG evaluation documentation for repository-specific benchmarks
+- Added quota-safe indexing behavior: when an already-indexed repository hits an embedding-provider quota, its previous complete index remains available with an explicit retry warning instead of becoming unusable.
 - Added and validated `docs/rag-benchmark.ai-engineering-platform.json` with 10 questions for this repository. Baseline against the seeded local index: Recall@5 **0.60**, MRR **0.545**, expected-file hit rate **0.80**, average retrieval latency **712.87 ms**.
 
-Phase 3 is not finished yet. One retrieval-quality improvement remains; the previously listed browser accessibility smoke check and repository benchmark authoring are complete.
+Phase 3 feature work is complete. One provider-dependent retrieval validation remains; the browser accessibility smoke check, repository benchmark authoring, retrieval improvement, and quota resilience are complete.
 
 ## Important current behavior and limitations
 

@@ -18,6 +18,12 @@ from app.services.parser_service import ParserService
 logger = logging.getLogger(__name__)
 
 
+def _is_embedding_quota_error(error: Exception) -> bool:
+    """Identify provider quota failures without depending on SDK exception types."""
+    message = str(error).lower()
+    return any(marker in message for marker in ("resource_exhausted", "quota", "rate limit", "429"))
+
+
 class IndexingService:
     """Orchestrates cloning, parsing, chunking, embedding, and storage for repositories."""
 
@@ -192,8 +198,20 @@ class IndexingService:
             repo_res = await db.execute(select(Repository).where(Repository.id == repo_id))
             r = repo_res.scalar_one_or_none()
             if r:
-                r.status = "error"
-                r.error_message = str(e)
+                chunk_count_result = await db.execute(
+                    select(func.count()).select_from(CodeChunk).where(CodeChunk.repository_id == repo_id)
+                )
+                existing_chunk_count = chunk_count_result.scalar() or 0
+                if _is_embedding_quota_error(e) and existing_chunk_count > 0:
+                    # Keep the last complete index usable. New code will be
+                    # picked up on a later retry after the provider window
+                    # resets, rather than taking repository Q&A offline.
+                    r.status = "ready"
+                    r.error_message = "Re-index paused because the embedding provider quota was exceeded. The previous index remains available; retry after the provider quota resets."
+                    logger.warning("Preserving previous index for %s after embedding quota exhaustion", repo_id)
+                else:
+                    r.status = "error"
+                    r.error_message = str(e)
                 await db.commit()
 
     async def reindex_files(
