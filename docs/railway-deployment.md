@@ -32,6 +32,9 @@ EMBEDDING_DIMENSION=768
 LLM_FALLBACK_PROVIDER=mock
 QUERY_CACHE_TTL_SECONDS=86400
 GITHUB_PAT=<optional Railway secret>
+GITHUB_APP_ID=<optional GitHub App ID>
+GITHUB_APP_INSTALLATION_ID=<optional GitHub installation ID>
+GITHUB_APP_PRIVATE_KEY=<optional GitHub App private key; use escaped newlines>
 GITHUB_WEBHOOK_SECRET=<optional Railway secret>
 SECRET_KEY=<new production secret>
 APP_ENV=production
@@ -39,6 +42,10 @@ REPOS_CLONE_DIR=/repos
 ```
 
 Attach a persistent Railway volume to `backend` and `worker` at `/repos` if repository clones must survive restarts.
+
+### GitHub App setup
+
+PAT access remains supported. To use the App flow, create a GitHub App with repository contents read access (and metadata read access), install it in the target account or organization, then place the App ID, installation ID, and private key in Railway Variables. The backend mints short-lived installation tokens only when all three App variables are present; it falls back to `GITHUB_PAT` when they are absent.
 
 ## Frontend variables
 
