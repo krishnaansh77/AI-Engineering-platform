@@ -1,10 +1,13 @@
 """FastAPI main application entrypoint."""
 import logging
+import time
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from redis import asyncio as redis
 from sqlalchemy import text
 
 from app.api.query import router as query_router
@@ -18,6 +21,45 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("aise")
+
+
+class SafetyMiddleware:
+    """Apply request-size and best-effort Redis rate limits to API traffic."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http" or not scope.get("path", "").startswith(("/repos", "/query")):
+            await self.app(scope, receive, send)
+            return
+        headers = dict(scope.get("headers") or [])
+        content_length = headers.get(b"content-length")
+        if content_length:
+            try:
+                if int(content_length) > settings.API_MAX_REQUEST_BYTES:
+                    response = JSONResponse(status_code=413, content={"error": {"code": "REQUEST_TOO_LARGE", "message": "Request body exceeds the configured size limit."}})
+                    await response(scope, receive, send)
+                    return
+            except ValueError:
+                pass
+        client_host = (scope.get("client") or ("unknown", 0))[0]
+        bucket = int(time.time() // 60)
+        key = f"aise:rate:{client_host}:{bucket}"
+        client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        try:
+            count = await client.incr(key)
+            if count == 1:
+                await client.expire(key, 60)
+            if count > settings.API_RATE_LIMIT_PER_MINUTE:
+                response = JSONResponse(status_code=429, content={"error": {"code": "RATE_LIMITED", "message": "Too many requests. Retry after the current minute."}}, headers={"Retry-After": "60"})
+                await response(scope, receive, send)
+                return
+        except Exception as exc:
+            logger.warning("Rate limiter unavailable; allowing request: %s", exc)
+        finally:
+            await client.aclose()
+        await self.app(scope, receive, send)
 
 
 @asynccontextmanager
@@ -43,6 +85,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+app.add_middleware(SafetyMiddleware)
 
 # CORS configuration
 app.add_middleware(

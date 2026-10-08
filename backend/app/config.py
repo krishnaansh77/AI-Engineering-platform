@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     RETRIEVAL_FINAL_K: int = 5
     RERANKER_ENABLED: bool = False
     QUERY_CACHE_TTL_SECONDS: int = 900
+    API_RATE_LIMIT_PER_MINUTE: int = 120
+    API_MAX_REQUEST_BYTES: int = 1_000_000
 
     # ── Storage ───────────────────────────────────────────────────────────────
     REPOS_CLONE_DIR: str = "/repos"

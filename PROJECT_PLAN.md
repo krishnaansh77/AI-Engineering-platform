@@ -56,6 +56,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Issue intelligence hardening with open/closed/all state selection, Redis caching, bounded retries, and mocked GitHub tests
 - Explicit documentation generation preview for one bounded source file, with citation metadata, audience control, provider usage metadata, and no automatic saving
 - Persisted citation counts for query events and feedback, with citation coverage and average citation metrics in quality reporting
+- Best-effort Redis-backed API rate limiting and configurable request-size protection with structured `429` and `413` error payloads
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
 - Per-case and average retrieval latency in evaluation results
@@ -102,7 +103,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 ### Phase 3B — Quality and safety
 
 1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis.
-2. Add API rate limits and request-size limits where appropriate.
+2. Add API rate limits and request-size limits where appropriate — baseline protection complete; endpoint-specific limits and broader tests remain.
 3. Add structured error codes and user-facing retry guidance.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic.
 5. Improve accessibility and responsive behavior across the repository detail page.
