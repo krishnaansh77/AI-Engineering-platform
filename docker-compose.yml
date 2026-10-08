@@ -89,6 +89,7 @@ services:
         condition: service_healthy
     environment:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
+    command: npm run dev
 
 volumes:
   postgres_data:
