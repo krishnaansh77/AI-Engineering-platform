@@ -26,6 +26,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("aise")
+EXPECTED_MIGRATION_REVISION = "007_query_token_usage"
 
 
 def _upgrade_database() -> None:
@@ -147,6 +148,13 @@ async def health_check() -> dict:
     except Exception as e:
         db_status = f"unhealthy: {e}"
 
+    migration_revision = "unknown"
+    try:
+        async with engine.connect() as conn:
+            migration_revision = str((await conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1"))).scalar_one_or_none() or "unknown")
+    except Exception as e:
+        logger.warning("Could not read database migration revision: %s", e)
+
     redis_status = "healthy"
     redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
     try:
@@ -157,9 +165,14 @@ async def health_check() -> dict:
         await redis_client.aclose()
 
     return {
-        "status": "healthy" if db_status == "healthy" and redis_status == "healthy" else "degraded",
+        "status": "healthy" if db_status == "healthy" and redis_status == "healthy" and migration_revision == EXPECTED_MIGRATION_REVISION else "degraded",
         "database": db_status,
         "redis": redis_status,
+        "migration": {
+            "current_revision": migration_revision,
+            "expected_revision": EXPECTED_MIGRATION_REVISION,
+            "up_to_date": migration_revision == EXPECTED_MIGRATION_REVISION,
+        },
         "app_env": settings.APP_ENV,
         "providers": {
             "llm": settings.LLM_PROVIDER,
