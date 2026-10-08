@@ -371,6 +371,11 @@ export const api = {
     return data;
   },
 
+  getCommitAnalysis: async (repoId: string, sha: string): Promise<LatestChangeAnalysis> => {
+    const { data } = await client.get<LatestChangeAnalysis>(`/repos/${repoId}/pr-analysis/commit/${sha}`);
+    return data;
+  },
+
   getTechnicalDebt: async (repoId: string): Promise<TechnicalDebtSummary> => {
     const { data } = await client.get<TechnicalDebtSummary>(`/repos/${repoId}/technical-debt`);
     return data;

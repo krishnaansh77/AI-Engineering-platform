@@ -280,7 +280,12 @@ class GitHubService:
     def analyze_latest_commit(self, clone_path: str) -> Dict:
         """Summarize the latest local commit for PR-style review signals."""
         repo = git.Repo(clone_path)
-        commit = repo.head.commit
+        return self.analyze_commit(clone_path, repo.head.commit.hexsha)
+
+    def analyze_commit(self, clone_path: str, commit_ref: str) -> Dict:
+        """Summarize any commit available in the local clone for PR-style review."""
+        repo = git.Repo(clone_path)
+        commit = repo.commit(commit_ref)
         changed_files = sorted(commit.stats.files.keys())
         test_files = [path for path in changed_files if "test" in Path(path).name.lower() or "tests" in Path(path).parts]
         documentation_files = [path for path in changed_files if Path(path).suffix.lower() in {".md", ".mdx", ".rst"}]

@@ -362,6 +362,26 @@ async def analyze_latest_repository_change(
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Latest change is unavailable.")
 
 
+@router.get("/{repo_id}/pr-analysis/commit/{commit_sha}")
+async def analyze_repository_commit(
+    repo_id: uuid.UUID,
+    commit_sha: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return PR-style review signals for a selected local commit."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready" or not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must be ready before commit analysis is available.")
+    try:
+        return GitHubService().analyze_commit(repository.clone_path, commit_sha)
+    except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError, git.exc.BadName, ValueError) as exc:
+        logger.warning("Commit %s unavailable for repository %s: %s", commit_sha, repo_id, exc)
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Commit is unavailable in the local clone.") from exc
+
+
 @router.get("/{repo_id}/technical-debt")
 async def get_technical_debt_signals(
     repo_id: uuid.UUID,

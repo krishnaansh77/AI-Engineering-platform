@@ -1,4 +1,4 @@
-"""Tests for Git history serialization."""
+"""Tests for Git history and source-file helpers."""
 import tempfile
 import unittest
 from pathlib import Path
