@@ -147,6 +147,8 @@ async def query_repository(
             model=query_answer.model,
             retrieval_count=len(retrieved_chunks),
             citation_count=len(query_answer.citations),
+            prompt_tokens=query_answer.prompt_tokens,
+            completion_tokens=query_answer.completion_tokens,
             retrieval_latency_ms=round(retrieval_latency_ms, 2),
             llm_latency_ms=round(llm_latency_ms, 2),
             total_latency_ms=round((time.perf_counter() - query_started) * 1000, 2),
@@ -332,9 +334,11 @@ async def get_query_metrics(
             func.avg(QueryEvent.total_latency_ms),
             func.avg(QueryEvent.retrieval_count),
             func.avg(QueryEvent.citation_count),
+            func.sum(QueryEvent.prompt_tokens),
+            func.sum(QueryEvent.completion_tokens),
         ).where(QueryEvent.repository_id == repo_id)
     )
-    total, retrieval, llm, total_latency, retrieval_count, citation_count = result.one()
+    total, retrieval, llm, total_latency, retrieval_count, citation_count, prompt_tokens, completion_tokens = result.one()
     return {
         "total_queries": int(total or 0),
         "average_retrieval_latency_ms": round(float(retrieval), 2) if retrieval is not None else 0,
@@ -342,4 +346,7 @@ async def get_query_metrics(
         "average_total_latency_ms": round(float(total_latency), 2) if total_latency is not None else 0,
         "average_retrieval_count": round(float(retrieval_count), 2) if retrieval_count is not None else 0,
         "average_citation_count": round(float(citation_count), 2) if citation_count is not None else 0,
+        "prompt_tokens": int(prompt_tokens or 0),
+        "completion_tokens": int(completion_tokens or 0),
+        "total_tokens": int((prompt_tokens or 0) + (completion_tokens or 0)),
     }

@@ -21,10 +21,12 @@ export default function QueryMetricsPanel({ repoId }: { repoId: string }) {
         <h2 className="text-sm font-semibold text-slate-700">Query Performance</h2>
       </div>
       <p className="text-xs text-slate-500 mb-4">Average timings from {metrics.total_queries} successful question{metrics.total_queries === 1 ? "" : "s"}.</p>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
         <Metric icon={<Timer className="w-3.5 h-3.5" />} label="Total" value={`${Math.round(metrics.average_total_latency_ms)} ms`} />
         <Metric icon={<Zap className="w-3.5 h-3.5" />} label="Retrieval" value={`${Math.round(metrics.average_retrieval_latency_ms)} ms`} />
         <Metric icon={<Gauge className="w-3.5 h-3.5" />} label="LLM" value={`${Math.round(metrics.average_llm_latency_ms)} ms`} />
+        <Metric icon={<Gauge className="w-3.5 h-3.5" />} label="Prompt tokens" value={metrics.prompt_tokens.toLocaleString()} />
+        <Metric icon={<Gauge className="w-3.5 h-3.5" />} label="Output tokens" value={metrics.completion_tokens.toLocaleString()} />
       </div>
     </section>
   );

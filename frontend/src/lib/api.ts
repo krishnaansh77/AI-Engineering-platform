@@ -148,6 +148,9 @@ export interface QueryMetrics {
   average_total_latency_ms: number;
   average_retrieval_count: number;
   average_citation_count: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
 }
 
 export interface SourceFilePreview {
