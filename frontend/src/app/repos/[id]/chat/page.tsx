@@ -85,6 +85,7 @@ export default function ChatPage() {
                   question: question.trim(),
                   model: response.model,
                   retrievalCount: response.retrieval_count,
+                  citationCoverage: response.citation_coverage,
                   cached: response.cached,
                   isLoading: false,
                 }

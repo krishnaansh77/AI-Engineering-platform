@@ -83,7 +83,7 @@ export default function ChatMessageComponent({ message, onFeedback }: ChatMessag
         {!isUser && !message.isLoading && message.citations && message.citations.length > 0 && (
           <div className="w-full">
             <p className="text-xs text-slate-400 mb-1.5 font-medium">
-              Sources ({message.citations.length})
+              Sources ({message.citations.length}) · {Math.round((message.citationCoverage ?? 0) * 100)}% referenced in answer
             </p>
             <div className="flex flex-col gap-1.5">
               {message.citations.map((citation, i) => (

@@ -132,7 +132,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 4. **RAG evaluation expansion**
    - Expanded the starter benchmark to 10 representative questions and added validation tests for benchmark files.
    - Added reusable instructions for tailoring expected files and running 10–20 question benchmarks per target repository; repository-specific benchmark authoring remains an owner-provided quality input.
-   - Answer-level citation coverage, helpful-rate reporting, and helpful-versus-unhelpful citation breakdowns are now surfaced in the quality dashboard; remaining work is richer citation matching and retrieval tuning based on those signals.
+   - Answer-level citation coverage, helpful-rate reporting, and helpful-versus-unhelpful citation breakdowns are now surfaced in the quality dashboard; query responses now also report the fraction of returned citations explicitly referenced by the answer, with UI visibility in chat.
    - CI validates the benchmark template and runs retrieval evaluation against a seeded PostgreSQL/pgvector repository.
 
 ### Phase 3B — Quality and safety

@@ -50,6 +50,7 @@ export interface QueryResponse {
   citations: Citation[];
   model: string;
   retrieval_count: number;
+  citation_coverage: number;
   cached?: boolean;
 }
 
@@ -311,6 +312,7 @@ export interface ChatMessage {
   question?: string;
   model?: string;
   retrievalCount?: number;
+  citationCoverage?: number;
   feedback?: FeedbackRating;
   cached?: boolean;
 }

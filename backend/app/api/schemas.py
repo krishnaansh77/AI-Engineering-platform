@@ -75,6 +75,7 @@ class QueryResponse(BaseModel):
     citations: List[CitationSchema]
     model: str
     retrieval_count: int
+    citation_coverage: float = Field(0.0, ge=0.0, le=1.0)
     cached: bool = False
 
 

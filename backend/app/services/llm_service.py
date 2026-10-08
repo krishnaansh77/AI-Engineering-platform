@@ -30,6 +30,7 @@ class QueryAnswer:
     model: str
     prompt_tokens: int
     completion_tokens: int
+    citation_coverage: float
 
 
 SYSTEM_PROMPT = """You are an expert AI software engineering intelligence assistant.
@@ -117,12 +118,22 @@ class LLMService:
                     )
                 )
 
+        answer_lower = response.content.casefold()
+        referenced_count = 0
+        for citation in citations:
+            candidates = [citation.file_path]
+            if citation.symbol_name and len(citation.symbol_name) >= 3:
+                candidates.append(citation.symbol_name)
+            if any(candidate.casefold() in answer_lower for candidate in candidates):
+                referenced_count += 1
+
         return QueryAnswer(
             answer=response.content,
             citations=citations,
             model=response.model,
             prompt_tokens=response.prompt_tokens,
             completion_tokens=response.completion_tokens,
+            citation_coverage=round(referenced_count / len(citations), 3) if citations else 0.0,
         )
 
     async def generate_documentation_preview(

@@ -163,6 +163,7 @@ async def query_repository(
         citations=citations,
         model=query_answer.model,
         retrieval_count=len(retrieved_chunks),
+        citation_coverage=query_answer.citation_coverage,
     )
     await _write_cached_query(cache_key, response.model_dump())
     return response
