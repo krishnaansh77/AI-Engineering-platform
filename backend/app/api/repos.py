@@ -39,6 +39,7 @@ from app.services.llm_service import LLMService
 from app.services.secret_scan_service import SecretScanService
 from app.api.auth import assert_repository_owner, get_current_user, require_roles
 from app.models.user import User
+from app.models.workspace import WorkspaceMember
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"], dependencies=[Depends(get_current_user)])
@@ -128,12 +129,14 @@ async def connect_repository(
         return existing
 
     repo_name = payload.name.strip() if payload.name else full_name.split("/")[-1]
+    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id).order_by(WorkspaceMember.created_at))
     repo = Repository(
         name=repo_name,
         full_name=full_name,
         github_url=payload.github_url.rstrip("/"),
         status="pending",
         owner_id=user.id,
+        workspace_id=membership.workspace_id if membership else None,
     )
     db.add(repo)
     await db.commit()

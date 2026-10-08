@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse
 from app.database import get_db
 from app.models.user import User
+from app.models.workspace import Workspace, WorkspaceMember
 from app.services.auth_service import create_access_token, decode_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["authentication"])
@@ -22,6 +23,10 @@ async def register(payload: RegisterRequest, db: AsyncSession = Depends(get_db))
     user = User(email=email, password_hash=hash_password(payload.password), role="member")
     db.add(user)
     await db.flush()
+    workspace = Workspace(name=f"{email}'s workspace", slug=f"workspace-{user.id.hex[:12]}")
+    db.add(workspace)
+    await db.flush()
+    db.add(WorkspaceMember(workspace_id=workspace.id, user_id=user.id, role="owner"))
     return AuthResponse(access_token=create_access_token(user.id, user.role), user=UserResponse.model_validate(user))
 
 

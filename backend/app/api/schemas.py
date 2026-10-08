@@ -52,6 +52,7 @@ class RepositoryResponse(BaseModel):
     chunk_count: int = 0
     last_indexed_at: Optional[datetime] = None
     created_at: datetime
+    workspace_id: Optional[uuid.UUID] = None
 
 
 class RepoStatsResponse(BaseModel):

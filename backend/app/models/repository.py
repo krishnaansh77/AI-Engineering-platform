@@ -53,3 +53,6 @@ class Repository(Base):
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    workspace_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("workspaces.id", ondelete="SET NULL"), nullable=True, index=True
+    )
