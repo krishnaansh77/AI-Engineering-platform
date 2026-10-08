@@ -52,6 +52,15 @@ export interface QueryResponse {
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
+  symbols: DependencyGraphSymbol[];
+}
+
+export interface DependencyGraphSymbol {
+  name: string;
+  type: string;
+  parent: string | null;
+  start_line: number;
+  end_line: number;
 }
 
 export interface DependencyGraphEdge {

@@ -143,6 +143,23 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
             <DependencyList icon={<ArrowDown className="w-3.5 h-3.5" />} title="Imports" edges={imports} direction="target" graph={graph} />
             <DependencyList icon={<ArrowUp className="w-3.5 h-3.5" />} title="Imported by" edges={importedBy} direction="source" graph={graph} />
           </div>
+          <div className="border border-slate-200 rounded-lg p-3 mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-600">Symbols in file</p>
+              <span className="text-[11px] text-slate-400">{selected?.symbols.length ?? 0}</span>
+            </div>
+            <div className="space-y-1.5 max-h-32 overflow-y-auto">
+              {selected?.symbols.map((symbol) => (
+                <div key={`${symbol.name}-${symbol.start_line}`} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="text-slate-700 truncate" title={symbol.parent ? `${symbol.parent}.${symbol.name}` : symbol.name}>
+                    {symbol.parent ? `${symbol.parent}.${symbol.name}` : symbol.name}
+                  </span>
+                  <span className="text-slate-400 whitespace-nowrap">{symbol.type} · L{symbol.start_line}</span>
+                </div>
+              ))}
+              {selected?.symbols.length === 0 && <p className="text-xs text-slate-400">No named symbols detected.</p>}
+            </div>
+          </div>
         </div>
       </div>
     </section>

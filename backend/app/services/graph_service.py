@@ -27,14 +27,35 @@ class DependencyGraphService:
         )
 
         edges: Set[Tuple[str, str, str]] = set()
+        symbols_by_file: Dict[str, List[dict]] = {path: [] for path in file_paths}
         for chunk in chunks_result.scalars().all():
             source = chunk.file_path
+            if chunk.symbol_name:
+                symbols_by_file.setdefault(source, []).append(
+                    {
+                        "name": chunk.symbol_name,
+                        "type": chunk.chunk_type,
+                        "parent": chunk.parent_symbol,
+                        "start_line": chunk.start_line,
+                        "end_line": chunk.end_line,
+                    }
+                )
             for raw_import in chunk.imports or []:
                 target = self.resolve_import(source, raw_import, known_paths)
                 if target and target != source:
                     edges.add((source, target, raw_import))
 
-        nodes = [{"id": path, "file_path": path} for path in file_paths]
+        nodes = [
+            {
+                "id": path,
+                "file_path": path,
+                "symbols": sorted(
+                    symbols_by_file.get(path, []),
+                    key=lambda symbol: (symbol["start_line"], symbol["name"]),
+                ),
+            }
+            for path in file_paths
+        ]
         edge_list = [
             {"source": source, "target": target, "import": import_text}
             for source, target, import_text in sorted(edges)
