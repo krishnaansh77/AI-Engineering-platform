@@ -81,6 +81,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added expected-file hit rate to RAG evaluation summaries and the evaluation dashboard
 - Added separate lower rate limits for provider/GitHub/scan-heavy endpoints
 - Added ASGI middleware tests for request-size rejection, route-specific throttling, and Redis fail-open behavior
+- Added CI validation for benchmark structure through the benchmark runner
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -118,7 +119,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
    - Expanded the starter benchmark to 10 representative questions and added validation tests for benchmark files.
    - Remaining: tailor expected files to each target repository and expand to 10–20 questions per target repository.
    - Remaining: add answer-level citation hit rate and helpful-rate reporting; retrieval evaluation now measures Recall@K, MRR, expected-file hit rate, and latency.
-   - Run the benchmark runner in CI against a seeded test repository.
+   - CI now validates the benchmark template; remaining: run retrieval evaluation in CI against a seeded PostgreSQL/pgvector repository.
 
 ### Phase 3B — Quality and safety
 

@@ -49,3 +49,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check whitespace errors
         run: git diff --check
+
+  benchmark-template:
+    name: Validate RAG benchmark template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate benchmark cases
+        run: python backend/scripts/run_rag_benchmark.py --validate-only

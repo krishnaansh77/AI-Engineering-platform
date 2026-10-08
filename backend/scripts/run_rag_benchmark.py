@@ -53,15 +53,25 @@ def run(base_url: str, repo_id: str, payload: dict) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--repo-id", required=True, help="Indexed repository UUID")
+    parser.add_argument("--repo-id", help="Indexed repository UUID")
     parser.add_argument("--benchmark", type=Path, default=DEFAULT_BENCHMARK)
     parser.add_argument("--base-url", default="http://localhost:8000/api")
+    parser.add_argument(
+        "--validate-only",
+        action="store_true",
+        help="Validate the benchmark file without contacting a running API",
+    )
     parser.add_argument("--min-recall", type=float, default=None)
     parser.add_argument("--min-mrr", type=float, default=None)
     args = parser.parse_args()
+    if not args.validate_only and not args.repo_id:
+        parser.error("--repo-id is required unless --validate-only is used")
 
     try:
         payload = load_benchmark(args.benchmark)
+        if args.validate_only:
+            print(f"Valid benchmark: {len(payload['cases'])} cases, top_k={payload['top_k']}")
+            return 0
         result = run(args.base_url, args.repo_id, payload)
     except (OSError, ValueError, HTTPError, URLError, json.JSONDecodeError) as exc:
         print(f"Benchmark failed: {exc}", file=sys.stderr)

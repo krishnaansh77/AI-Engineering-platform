@@ -34,6 +34,11 @@ class TestBenchmarkRunner(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "expected_files"):
             load_benchmark(path)
 
+    def test_template_contains_ten_cases(self):
+        benchmark = Path(__file__).resolve().parents[2] / "docs" / "rag-benchmark.example.json"
+        payload = load_benchmark(benchmark)
+        self.assertEqual(len(payload["cases"]), 10)
+
 
 if __name__ == "__main__":
     unittest.main()
