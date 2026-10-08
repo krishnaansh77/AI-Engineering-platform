@@ -97,7 +97,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added a PostgreSQL-backed indexing pipeline integration test with mocked external services
 - Added reusable RAG evaluation documentation for repository-specific benchmarks
 
-Phase 3 is not finished yet. The remaining work is listed below.
+Phase 3 is not finished yet. Two quality/product inputs remain; the previously listed browser accessibility smoke check is complete.
 
 ## Important current behavior and limitations
 
@@ -141,7 +141,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 2. Add API rate limits and request-size limits where appropriate — baseline, endpoint-specific protection, and ASGI middleware tests complete.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
-5. Improve accessibility and responsive behavior across the repository detail page — static audit complete for labels, focus states, form associations, live regions, alert semantics, selection states, reduced-motion support, and responsive Phase 3 controls; browser-based WCAG verification remains future work.
+5. Improve accessibility and responsive behavior across the repository detail page — static audit complete, and live browser verification completed for navigation, headings, labels, buttons, disabled states, status regions, and repository controls. A full automated WCAG audit remains optional hardening rather than a Phase 3 blocker.
 
 ### CI status
 
