@@ -59,6 +59,25 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
   const selected = graph?.nodes.find((node) => node.id === selectedFile);
   const imports = graph?.edges.filter((edge) => edge.source === selectedFile) ?? [];
   const importedBy = graph?.edges.filter((edge) => edge.target === selectedFile) ?? [];
+  const impact = useMemo(() => {
+    if (!graph || !selectedFile) return { dependencies: new Set<string>(), dependents: new Set<string>() };
+    const walk = (direction: "dependencies" | "dependents") => {
+      const visited = new Set<string>();
+      let frontier = new Set([selectedFile]);
+      for (let depth = 0; depth < 3; depth += 1) {
+        const next = new Set<string>();
+        graph.edges.forEach((edge) => {
+          const matches = direction === "dependencies" ? frontier.has(edge.source) : frontier.has(edge.target);
+          const neighbor = direction === "dependencies" ? edge.target : edge.source;
+          if (matches && neighbor !== selectedFile && !visited.has(neighbor)) next.add(neighbor);
+        });
+        next.forEach((node) => visited.add(node));
+        frontier = next;
+      }
+      return visited;
+    };
+    return { dependencies: walk("dependencies"), dependents: walk("dependents") };
+  }, [graph, selectedFile]);
 
   if (loading) {
     return <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 animate-pulse h-72" />;
@@ -159,6 +178,17 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
               ))}
               {selected?.symbols.length === 0 && <p className="text-xs text-slate-400">No named symbols detected.</p>}
             </div>
+          </div>
+          <div className="border border-sky-100 bg-sky-50/50 rounded-lg p-3 mt-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-slate-600">Change impact · 3 hops</p>
+              <span className="text-[11px] text-slate-400">{impact.dependencies.size + impact.dependents.size} files</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div><p className="font-semibold text-sky-700">{impact.dependencies.size}</p><p className="text-slate-500">dependencies</p></div>
+              <div><p className="font-semibold text-sky-700">{impact.dependents.size}</p><p className="text-slate-500">possible dependents</p></div>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2">Includes direct and transitive file links.</p>
           </div>
         </div>
       </div>
