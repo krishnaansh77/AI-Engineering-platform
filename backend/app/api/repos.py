@@ -248,6 +248,29 @@ async def get_repository_history(
     return {"commits": commits, "count": len(commits)}
 
 
+@router.get("/{repo_id}/source/{file_path:path}")
+async def get_repository_source_file(
+    repo_id: uuid.UUID,
+    file_path: str,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return a bounded source preview from the repository clone."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before source is available.")
+    if not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository clone is unavailable.")
+    try:
+        return GitHubService().read_source_file(repository.clone_path, file_path)
+    except FileNotFoundError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Source file not found")
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
 @router.get("/{repo_id}/architecture")
 async def get_repository_architecture(
     repo_id: uuid.UUID,

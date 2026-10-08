@@ -24,6 +24,11 @@ class TestGitHubHistory(unittest.TestCase):
             self.assertEqual(history[0]["files"], ["hello.py"])
             self.assertEqual(history[0]["files_changed"], 1)
 
+    def test_source_reader_rejects_path_traversal(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                GitHubService().read_source_file(directory, "../outside.py")
+
 
 if __name__ == "__main__":
     unittest.main()

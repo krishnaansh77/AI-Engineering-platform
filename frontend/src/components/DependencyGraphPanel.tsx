@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, GitBranch, Search } from "lucide-react";
-import { api, DependencyGraph, getErrorMessage } from "@/lib/api";
+import { api, DependencyGraph, getErrorMessage, SourceFilePreview } from "@/lib/api";
 
 interface DependencyGraphPanelProps {
   repoId: string;
@@ -15,6 +15,8 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
   const [fileFilter, setFileFilter] = useState<"all" | "connected" | "isolated">("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [source, setSource] = useState<SourceFilePreview | null>(null);
+  const [sourceLoading, setSourceLoading] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -31,6 +33,15 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
       active = false;
     };
   }, [repoId]);
+
+  useEffect(() => {
+    if (!selectedFile) return;
+    setSourceLoading(true);
+    api.getSourceFile(repoId, selectedFile)
+      .then(setSource)
+      .catch(() => setSource(null))
+      .finally(() => setSourceLoading(false));
+  }, [repoId, selectedFile]);
 
   const connectionCounts = useMemo(() => {
     const counts = new Map<string, number>();
@@ -189,6 +200,19 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
               <div><p className="font-semibold text-sky-700">{impact.dependents.size}</p><p className="text-slate-500">possible dependents</p></div>
             </div>
             <p className="text-[11px] text-slate-400 mt-2">Includes direct and transitive file links.</p>
+          </div>
+          <div className="border border-slate-200 rounded-lg overflow-hidden mt-3">
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
+              <p className="text-xs font-semibold text-slate-600">Source preview</p>
+              {source && <span className="text-[11px] text-slate-400">{source.language}</span>}
+            </div>
+            {sourceLoading ? (
+              <div className="h-28 animate-pulse bg-slate-50" />
+            ) : source ? (
+              <pre className="max-h-72 overflow-auto p-3 text-[11px] leading-5 text-slate-700 bg-slate-950"><code>{source.content.split("\n").map((line, index) => <span key={index} className="block"><span className="inline-block w-10 mr-3 text-right text-slate-500 select-none">{index + 1}</span><span className="text-slate-200">{line || " "}</span></span>)}</code></pre>
+            ) : (
+              <p className="p-3 text-xs text-slate-500">Source preview unavailable.</p>
+            )}
           </div>
         </div>
       </div>

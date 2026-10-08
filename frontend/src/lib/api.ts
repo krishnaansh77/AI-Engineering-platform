@@ -111,6 +111,12 @@ export interface QueryMetrics {
   average_retrieval_count: number;
 }
 
+export interface SourceFilePreview {
+  file_path: string;
+  language: string;
+  content: string;
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -236,6 +242,13 @@ export const api = {
 
   getQueryMetrics: async (repoId: string): Promise<QueryMetrics> => {
     const { data } = await client.get<QueryMetrics>(`/repos/${repoId}/query-metrics`);
+    return data;
+  },
+
+  getSourceFile: async (repoId: string, filePath: string): Promise<SourceFilePreview> => {
+    const { data } = await client.get<SourceFilePreview>(
+      `/repos/${repoId}/source/${filePath.split("/").map(encodeURIComponent).join("/")}`
+    );
     return data;
   },
 };

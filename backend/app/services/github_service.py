@@ -230,6 +230,26 @@ class GitHubService:
             )
         return commits
 
+    def read_source_file(
+        self, clone_path: str, relative_path: str, max_bytes: int = 200_000
+    ) -> Dict:
+        """Read a bounded repository file while preventing path traversal."""
+        root = Path(clone_path).resolve()
+        candidate = (root / relative_path).resolve()
+        try:
+            candidate.relative_to(root)
+        except ValueError as exc:
+            raise ValueError("File path must stay inside the repository") from exc
+        if not candidate.is_file():
+            raise FileNotFoundError(relative_path)
+        if candidate.stat().st_size > max_bytes:
+            raise ValueError("File is too large to preview")
+        return {
+            "file_path": str(candidate.relative_to(root)),
+            "language": SUPPORTED_EXTENSIONS.get(candidate.suffix.lower(), "text"),
+            "content": candidate.read_text(encoding="utf-8", errors="replace"),
+        }
+
     def verify_webhook_signature(
         self, payload: bytes, signature_header: str, secret: str
     ) -> bool:
