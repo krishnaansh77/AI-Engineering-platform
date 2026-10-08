@@ -1,12 +1,17 @@
 {
   "name": "AI Engineering Platform starter benchmark",
-  "description": "Copy this file to a local benchmark and replace expected files with paths from the indexed repository.",
+  "description": "Starter benchmark for this repository. Replace expected files with paths from the repository being evaluated.",
   "top_k": 5,
   "cases": [
     {"question": "How is the database initialized?", "expected_files": ["backend/app/database.py"]},
     {"question": "Where are repository API routes defined?", "expected_files": ["backend/app/api/repos.py"]},
     {"question": "How does hybrid retrieval combine search results?", "expected_files": ["backend/app/services/retrieval_service.py"]},
     {"question": "Where are background indexing tasks configured?", "expected_files": ["backend/app/workers/tasks.py", "backend/app/workers/celery_app.py"]},
-    {"question": "How are retrieval evaluation metrics calculated?", "expected_files": ["backend/app/services/evaluation_service.py", "backend/app/api/query.py"]}
+    {"question": "How are retrieval evaluation metrics calculated?", "expected_files": ["backend/app/services/evaluation_service.py", "backend/app/api/query.py"]},
+    {"question": "How are Gemini providers created and selected?", "expected_files": ["backend/app/providers/llm/gemini_provider.py", "backend/app/providers/llm/factory.py", "backend/app/providers/embedding/gemini_embedding.py"]},
+    {"question": "Where is repository indexing progress and status updated?", "expected_files": ["backend/app/services/indexing_service.py", "backend/app/api/repos.py"]},
+    {"question": "How are repository questions cached and invalidated after re-indexing?", "expected_files": ["backend/app/services/query_cache.py", "backend/app/api/query.py"]},
+    {"question": "Where are source previews protected against unsafe paths?", "expected_files": ["backend/app/api/repos.py", "backend/app/services/github_service.py"]},
+    {"question": "How are secret scan findings detected and redacted?", "expected_files": ["backend/app/services/secret_scan_service.py", "backend/app/api/repos.py"]}
   ]
 }

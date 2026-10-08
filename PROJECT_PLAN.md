@@ -77,6 +77,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Per-case and average retrieval latency in evaluation results
 - Reviewable starter benchmark template at `docs/rag-benchmark.example.json`
 - CI-friendly benchmark runner at `backend/scripts/run_rag_benchmark.py` with optional quality thresholds
+- Expanded starter RAG benchmark to 10 repository questions with strict benchmark-file validation and runner tests
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -111,7 +112,8 @@ Phase 3 is not finished yet. The remaining work is listed below.
    - Future work: add an explicit user-approved export/save flow with a diff and confirmation.
 
 4. **RAG evaluation expansion**
-   - Expand the starter benchmark to 10–20 representative questions for the target repositories.
+   - Expanded the starter benchmark to 10 representative questions and added validation tests for benchmark files.
+   - Remaining: tailor expected files to each target repository and expand to 10–20 questions per target repository.
    - Add answer-level citation hit rate and helpful-rate reporting; retrieval evaluation currently measures Recall@K, MRR, and latency.
    - Run the benchmark runner in CI against a seeded test repository.
 

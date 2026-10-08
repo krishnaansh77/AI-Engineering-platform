@@ -17,8 +17,26 @@ DEFAULT_BENCHMARK = Path(__file__).resolve().parents[2] / "docs" / "rag-benchmar
 def load_benchmark(path: Path) -> dict:
     with path.open(encoding="utf-8") as benchmark_file:
         payload = json.load(benchmark_file)
-    if not payload.get("cases"):
+    cases = payload.get("cases")
+    if not isinstance(cases, list) or not cases:
         raise ValueError("Benchmark must contain at least one case")
+    top_k = payload.get("top_k", 5)
+    if not isinstance(top_k, int) or isinstance(top_k, bool) or not 1 <= top_k <= 20:
+        raise ValueError("Benchmark top_k must be an integer between 1 and 20")
+    for index, case in enumerate(cases, start=1):
+        if not isinstance(case, dict):
+            raise ValueError(f"Benchmark case {index} must be an object")
+        question = case.get("question")
+        expected_files = case.get("expected_files")
+        if not isinstance(question, str) or not question.strip() or len(question) > 1000:
+            raise ValueError(f"Benchmark case {index} question must be 1-1000 characters")
+        if (
+            not isinstance(expected_files, list)
+            or not 1 <= len(expected_files) <= 20
+            or any(not isinstance(path, str) or not path.strip() for path in expected_files)
+        ):
+            raise ValueError(f"Benchmark case {index} expected_files must contain 1-20 paths")
+    payload["top_k"] = top_k
     return payload
 
 
