@@ -2,12 +2,13 @@
 import uuid
 import hashlib
 import secrets
+import re
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceInvitationCreate, WorkspaceInvitationResponse
+from app.api.schemas import AuthResponse, LoginRequest, RegisterRequest, UserResponse, WorkspaceResponse, WorkspaceCreate, WorkspaceUpdate, WorkspaceInvitationCreate, WorkspaceInvitationResponse
 from app.database import get_db
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
@@ -86,6 +87,34 @@ async def workspaces(user: User = Depends(get_current_user), db: AsyncSession = 
         .order_by(Workspace.created_at)
     )
     return [WorkspaceResponse(id=workspace.id, name=workspace.name, slug=workspace.slug, role=role) for workspace, role in rows.all()]
+
+
+def _workspace_slug(name: str) -> str:
+    base = re.sub(r"[^a-z0-9]+", "-", name.strip().lower()).strip("-") or "workspace"
+    return f"{base}-{secrets.token_hex(4)}"
+
+
+@router.post("/workspaces", response_model=WorkspaceResponse, status_code=status.HTTP_201_CREATED)
+async def create_workspace(payload: WorkspaceCreate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> WorkspaceResponse:
+    workspace = Workspace(name=payload.name.strip(), slug=_workspace_slug(payload.name))
+    db.add(workspace)
+    await db.flush()
+    db.add(WorkspaceMember(workspace_id=workspace.id, user_id=user.id, role="owner"))
+    await db.commit()
+    return WorkspaceResponse(id=workspace.id, name=workspace.name, slug=workspace.slug, role="owner")
+
+
+@router.patch("/workspaces/{workspace_id}", response_model=WorkspaceResponse)
+async def update_workspace(workspace_id: uuid.UUID, payload: WorkspaceUpdate, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)) -> WorkspaceResponse:
+    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.workspace_id == workspace_id, WorkspaceMember.user_id == user.id))
+    if not membership or membership.role not in {"owner", "admin"}:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only workspace owners and admins can rename a workspace.")
+    workspace = await db.get(Workspace, workspace_id)
+    if not workspace:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workspace not found.")
+    workspace.name = payload.name.strip()
+    await db.commit()
+    return WorkspaceResponse(id=workspace.id, name=workspace.name, slug=workspace.slug, role=membership.role)
 
 
 @router.post("/workspaces/{workspace_id}/invitations", response_model=WorkspaceInvitationResponse, status_code=status.HTTP_201_CREATED)

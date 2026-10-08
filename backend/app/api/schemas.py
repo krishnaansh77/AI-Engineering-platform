@@ -41,6 +41,14 @@ class WorkspaceResponse(BaseModel):
     role: str
 
 
+class WorkspaceCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+
+
+class WorkspaceUpdate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=255)
+
+
 class WorkspaceInvitationCreate(BaseModel):
     email: str = Field(..., min_length=3, max_length=320)
     role: Literal["member", "admin"] = "member"

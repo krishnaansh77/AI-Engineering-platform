@@ -75,6 +75,7 @@ export interface QueryResponse {
 export interface AuthUser { id: string; email: string; role: string; }
 export interface AuthResponse { access_token: string; token_type: string; user: AuthUser; }
 export interface Workspace { id: string; name: string; slug: string; role: string; }
+export interface WorkspaceCreateResponse extends Workspace {}
 export interface WorkspaceInvitation { id: string; workspace_id: string; email: string; role: string; expires_at: string; invite_token?: string | null; }
 
 export type FeedbackRating = "helpful" | "not_helpful";
@@ -360,6 +361,16 @@ export const api = {
 
   listWorkspaces: async (): Promise<Workspace[]> => {
     const { data } = await client.get<Workspace[]>("/auth/workspaces");
+    return data;
+  },
+
+  createWorkspace: async (name: string): Promise<Workspace> => {
+    const { data } = await client.post<Workspace>("/auth/workspaces", { name });
+    return data;
+  },
+
+  renameWorkspace: async (workspaceId: string, name: string): Promise<Workspace> => {
+    const { data } = await client.patch<Workspace>(`/auth/workspaces/${workspaceId}`, { name });
     return data;
   },
 
