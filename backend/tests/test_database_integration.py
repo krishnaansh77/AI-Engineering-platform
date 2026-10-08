@@ -4,10 +4,12 @@ Run with RUN_DB_INTEGRATION=1 and a PostgreSQL/pgvector DATABASE_URL.
 The regular local suite skips these tests when no database is configured.
 """
 import os
+import tempfile
 import unittest
 import uuid
 from datetime import datetime, timezone
 from importlib.util import find_spec
+from pathlib import Path
 
 DB_INTEGRATION_ENABLED = os.getenv("RUN_DB_INTEGRATION") == "1" and find_spec("fastapi") is not None
 if DB_INTEGRATION_ENABLED:
@@ -19,6 +21,8 @@ if DB_INTEGRATION_ENABLED:
     from app.models.source_file import SourceFile
     from app.models.query_feedback import QueryFeedback
     from app.providers.embedding.mock_embedding import MockEmbeddingProvider
+    from app.services.indexing_service import IndexingService
+    from app.services.parser_service import ParsedChunk
 
 
 @unittest.skipUnless(DB_INTEGRATION_ENABLED, "set RUN_DB_INTEGRATION=1 to run database integration tests")
@@ -114,6 +118,65 @@ class TestDatabaseIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["not_helpful_average_citation_count"], 0.0)
         self.assertEqual(result["helpful_citation_coverage_rate"], 1.0)
         self.assertEqual(result["not_helpful_citation_coverage_rate"], 0.0)
+
+    async def test_indexing_pipeline_persists_files_and_chunks(self):
+        class FakeGitHub:
+            SUPPORTED_EXTENSIONS = {".py": "python"}
+
+            def __init__(self, clone_path):
+                self.clone_path = clone_path
+
+            def clone_repository(self, **_kwargs):
+                return self.clone_path
+
+            def detect_languages(self, _clone_path):
+                return ["python"]
+
+            def detect_frameworks(self, _clone_path):
+                return []
+
+            def list_source_files(self, _clone_path):
+                path = Path(self.clone_path) / "src" / "sample.py"
+                return [{"relative_path": "src/sample.py", "path": str(path), "language": "python", "size": path.stat().st_size}]
+
+            def get_file_hash(self, path):
+                return uuid.uuid5(uuid.NAMESPACE_URL, Path(path).read_text()).hex
+
+        class FakeParser:
+            def parse_file(self, _path, language):
+                return [ParsedChunk("module", "sample", None, 1, 1, "def sample(): return 1", None, [], language)]
+
+        class FakeEmbedding:
+            async def embed_chunks(self, chunks):
+                return [[0.0] * 768 for _ in chunks]
+
+        repo_id = uuid.uuid4()
+        with tempfile.TemporaryDirectory() as clone_path:
+            source_path = Path(clone_path) / "src" / "sample.py"
+            source_path.parent.mkdir()
+            source_path.write_text("def sample(): return 1\n")
+            async with AsyncSessionLocal() as session:
+                session.add(Repository(
+                    id=repo_id,
+                    name="index-fixture",
+                    full_name=f"integration/index-{repo_id}",
+                    github_url="https://github.com/integration/index-fixture",
+                    status="pending",
+                    languages=[],
+                    frameworks=[],
+                ))
+                await session.commit()
+                await IndexingService(
+                    github_service=FakeGitHub(clone_path),
+                    parser_service=FakeParser(),
+                    embedding_service=FakeEmbedding(),
+                ).index_repository(repo_id, session)
+                refreshed = await session.get(Repository, repo_id)
+                self.assertEqual(refreshed.status, "ready")
+                self.assertEqual(refreshed.file_count, 1)
+                self.assertEqual(refreshed.chunk_count, 1)
+                await session.delete(refreshed)
+                await session.commit()
 
 
 if __name__ == "__main__":

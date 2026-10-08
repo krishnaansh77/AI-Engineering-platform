@@ -92,6 +92,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Fixed indexing progress step updates and exposed the active step through an accessible live status
 - Added helpful versus unhelpful citation coverage breakdowns for feedback-driven quality analysis
 - Added real PostgreSQL/pgvector endpoint smoke tests for retrieval evaluation and feedback citation aggregation, executed in the seeded CI job
+- Added a PostgreSQL-backed indexing pipeline integration test with mocked external services
 - Added reusable RAG evaluation documentation for repository-specific benchmarks
 
 Phase 3 is not finished yet. The remaining work is listed below.
@@ -134,7 +135,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 
 ### Phase 3B — Quality and safety
 
-1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis — core GitHub, parser, graph, cache, schema, and PR-analysis boundaries are covered; a database-backed retrieval-evaluation endpoint smoke test now runs in CI.
+1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis — core GitHub, parser, graph, cache, schema, PR-analysis, retrieval-evaluation, feedback, and indexing boundaries are covered in unit or database-backed CI tests.
 2. Add API rate limits and request-size limits where appropriate — baseline, endpoint-specific protection, and ASGI middleware tests complete.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
