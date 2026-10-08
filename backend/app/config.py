@@ -37,6 +37,8 @@ class Settings(BaseSettings):
     # Google Gemini
     GOOGLE_API_KEY: str = ""
     GEMINI_LLM_MODEL: str = "gemini-3.8-flash"
+    OLLAMA_BASE_URL: str = "http://localhost:11434"
+    OLLAMA_LLM_MODEL: str = "llama3.2"
 
     # Anthropic (Phase 4)
     ANTHROPIC_API_KEY: str = ""

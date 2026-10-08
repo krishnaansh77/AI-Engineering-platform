@@ -19,9 +19,12 @@ def get_llm_provider() -> LLMProvider:
     elif provider == "gemini":
         from app.providers.llm.gemini_provider import GeminiProvider
         return GeminiProvider()
+    elif provider == "ollama":
+        from app.providers.llm.ollama_provider import OllamaProvider
+        return OllamaProvider()
     elif provider in ("mock", "local"):
         from app.providers.llm.mock_llm import MockLLMProvider
         return MockLLMProvider()
     raise ValueError(
-        f"Unknown LLM provider: '{provider}'. Set LLM_PROVIDER=openai, gemini, or mock in your .env file."
+        f"Unknown LLM provider: '{provider}'. Set LLM_PROVIDER=openai, gemini, ollama, or mock in your .env file."
     )
