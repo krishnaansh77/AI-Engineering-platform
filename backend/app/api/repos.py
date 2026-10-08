@@ -23,6 +23,7 @@ from app.api.schemas import (
     RepositoryResponse,
     SourceFileResponse,
 )
+from app.api.errors import error_detail
 from app.database import AsyncSessionLocal, get_db
 from app.config import settings
 from app.models.repository import Repository
@@ -397,7 +398,7 @@ async def generate_documentation_preview(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except Exception as exc:
         logger.exception("Documentation provider failed for repository %s", repo_id)
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Documentation generation is temporarily unavailable or over quota.") from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=error_detail("DOC_GENERATION_UNAVAILABLE", "Documentation generation is temporarily unavailable or over quota.", True)) from exc
     return {
         "file_path": source["file_path"],
         "audience": payload.audience,
@@ -474,7 +475,7 @@ async def compare_repository_changes(
         return analysis
     except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError, git.exc.BadName, git.exc.GitCommandError, ValueError) as exc:
         logger.warning("PR comparison unavailable for repository %s: %s", repo_id, exc)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Base or head commit is unavailable in the local clone.") from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_detail("COMMIT_REF_UNAVAILABLE", "Base or head commit is unavailable in the local clone.", False)) from exc
 
 
 @router.get("/{repo_id}/technical-debt")
@@ -527,7 +528,7 @@ async def list_repository_issues(
         issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, limit, state)
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Could not fetch issues for repository %s: %s", repo_id, exc)
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable or rate-limited. Retry shortly or configure GITHUB_PAT.") from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=error_detail("GITHUB_ISSUES_UNAVAILABLE", "GitHub issues are unavailable or rate-limited. Retry shortly or configure GITHUB_PAT.", True)) from exc
     await _write_issue_cache(cache_key, issues)
     return {"issues": issues, "cached": False, "state": state}
 
@@ -548,7 +549,7 @@ async def analyze_repository_issue(
     try:
         issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, 50, "all")
     except (httpx.HTTPError, ValueError) as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable or rate-limited. Retry shortly or configure GITHUB_PAT.") from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=error_detail("GITHUB_ISSUES_UNAVAILABLE", "GitHub issues are unavailable or rate-limited. Retry shortly or configure GITHUB_PAT.", True)) from exc
     issue = next((item for item in issues if item["number"] == issue_number), None)
     if not issue:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")

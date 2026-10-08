@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis import asyncio as redis
 
 from app.api.schemas import CitationSchema, EvaluationRequest, FeedbackRequest, QueryRequest, QueryResponse, SearchResponse, SearchResultSchema
+from app.api.errors import error_detail
 from app.config import settings
 from app.database import get_db
 from app.models.repository import Repository
@@ -114,10 +115,7 @@ async def query_repository(
         logger.exception("LLM provider failed for repository %s", repo_id)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=(
-                "The AI provider is temporarily unavailable or over quota. "
-                "Please retry later or check the configured provider limits."
-            ),
+            detail=error_detail("LLM_PROVIDER_UNAVAILABLE", "The AI provider is temporarily unavailable or over quota. Please retry later or check the configured provider limits.", True),
         ) from exc
     llm_latency_ms = (time.perf_counter() - llm_started) * 1000
 

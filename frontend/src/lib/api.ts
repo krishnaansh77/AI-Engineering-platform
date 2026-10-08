@@ -447,6 +447,8 @@ export const api = {
 
 export function getErrorMessage(error: unknown): string {
   if (axios.isAxiosError(error)) {
+    const structured = error.response?.data?.detail?.error;
+    if (structured?.message) return structured.message;
     return (
       error.response?.data?.detail ||
       error.response?.data?.message ||

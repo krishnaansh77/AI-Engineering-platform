@@ -10,6 +10,7 @@ from app.api.schemas import (
     QueryRequest,
     QueryResponse,
 )
+from app.api.errors import error_detail
 
 
 class TestSchemas(unittest.TestCase):
@@ -68,6 +69,12 @@ class TestSchemas(unittest.TestCase):
         )
         self.assertEqual(len(res.citations), 1)
         self.assertEqual(res.citations[0].symbol_name, "login")
+
+    def test_error_detail_is_structured(self):
+        self.assertEqual(
+            error_detail("RATE_LIMITED", "Try again", True),
+            {"error": {"code": "RATE_LIMITED", "message": "Try again", "retryable": True}},
+        )
 
 
 if __name__ == "__main__":
