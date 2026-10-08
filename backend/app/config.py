@@ -55,7 +55,10 @@ class Settings(BaseSettings):
     RETRIEVAL_TOP_K: int = 20
     RETRIEVAL_FINAL_K: int = 5
     RERANKER_ENABLED: bool = False
-    QUERY_CACHE_TTL_SECONDS: int = 900
+    # Answers remain valid until the repository is reindexed because the
+    # cache key includes last_indexed_at. A longer TTL saves provider calls.
+    QUERY_CACHE_TTL_SECONDS: int = 86400
+    LLM_FALLBACK_PROVIDER: str = "mock"
     API_RATE_LIMIT_PER_MINUTE: int = 120
     API_MAX_REQUEST_BYTES: int = 1_000_000
 

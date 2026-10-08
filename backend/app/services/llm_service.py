@@ -43,6 +43,10 @@ Instructions:
 5. Format your response cleanly using GitHub-flavored markdown with code blocks when helpful.
 """
 
+# Keep prompts small enough for free-tier TPM limits while retaining complete
+# file/symbol/line provenance for citations.
+_MAX_CONTEXT_CHARS_PER_CHUNK = 4500
+
 
 class LLMService:
     """Orchestrates prompt assembly and LLM generation for codebase Q&A."""
@@ -64,7 +68,10 @@ class LLMService:
                 f"--- [Snippet {idx}] {chunk.file_path}{symbol_info} "
                 f"({chunk.chunk_type}, Lines {chunk.start_line}–{chunk.end_line}) ---"
             )
-            code_block = f"```{chunk.language}\n{chunk.content}\n```"
+            content = chunk.content[:_MAX_CONTEXT_CHARS_PER_CHUNK]
+            if len(chunk.content) > _MAX_CONTEXT_CHARS_PER_CHUNK:
+                content += "\n…[snippet truncated for context budget]"
+            code_block = f"```{chunk.language}\n{content}\n```"
             sections.append(f"{header}\n{code_block}")
 
         return "\n\n".join(sections)

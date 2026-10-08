@@ -113,10 +113,24 @@ async def query_repository(
         )
     except Exception as exc:
         logger.exception("LLM provider failed for repository %s", repo_id)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=error_detail("LLM_PROVIDER_UNAVAILABLE", "The AI provider is temporarily unavailable or over quota. Please retry later or check the configured provider limits.", True),
-        ) from exc
+        # Keep repository exploration usable during provider quota windows.
+        # The local synthesizer is grounded in the same retrieved chunks and
+        # makes no external API call. It is deliberately explicit in the
+        # response model so users know when AI generation was unavailable.
+        if settings.LLM_FALLBACK_PROVIDER.lower() not in {"mock", "local"}:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=error_detail("LLM_PROVIDER_UNAVAILABLE", "The AI provider is temporarily unavailable or over quota. Please retry later or check the configured provider limits.", True),
+            ) from exc
+        logger.warning("Using local grounded fallback after LLM provider failure")
+        from app.providers.llm.mock_llm import MockLLMProvider
+
+        fallback_answer = await LLMService(provider=MockLLMProvider()).answer_query(
+            query=payload.question,
+            retrieved_chunks=retrieved_chunks,
+            repo_name=repo.full_name,
+        )
+        query_answer = fallback_answer
     llm_latency_ms = (time.perf_counter() - llm_started) * 1000
 
     db.add(
