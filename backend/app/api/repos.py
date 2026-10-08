@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 from typing import List, Literal
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import PlainTextResponse
-from sqlalchemy import case, desc, func, select
+from sqlalchemy import case, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis import asyncio as redis
 
@@ -129,7 +129,9 @@ async def connect_repository(
         return existing
 
     repo_name = payload.name.strip() if payload.name else full_name.split("/")[-1]
-    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id).order_by(WorkspaceMember.created_at))
+    membership = await db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id, WorkspaceMember.workspace_id == payload.workspace_id).order_by(WorkspaceMember.created_at)) if payload.workspace_id else await db.scalar(select(WorkspaceMember).where(WorkspaceMember.user_id == user.id).order_by(WorkspaceMember.created_at))
+    if payload.workspace_id and not membership:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not a member of the selected workspace.")
     repo = Repository(
         name=repo_name,
         full_name=full_name,
@@ -149,9 +151,16 @@ async def connect_repository(
 @router.get("", response_model=List[RepositoryResponse])
 async def list_repositories(
     db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    workspace_id: uuid.UUID | None = Query(default=None),
 ) -> List[Repository]:
-    """List all connected repositories ordered by newest first."""
-    stmt = select(Repository).order_by(desc(Repository.created_at))
+    """List repositories visible to the user, optionally scoped to a workspace."""
+    memberships = await db.scalars(select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user.id))
+    workspace_ids = list(memberships.all())
+    if workspace_id and workspace_id not in workspace_ids:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not a member of the selected workspace.")
+    visible_workspaces = [workspace_id] if workspace_id else workspace_ids
+    stmt = select(Repository).where(or_(Repository.owner_id == user.id, Repository.workspace_id.in_(visible_workspaces))).order_by(desc(Repository.created_at)) if visible_workspaces else select(Repository).where(Repository.owner_id == user.id).order_by(desc(Repository.created_at))
     result = await db.execute(stmt)
     return list(result.scalars().all())
 

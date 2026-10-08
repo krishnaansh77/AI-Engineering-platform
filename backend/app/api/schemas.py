@@ -9,6 +9,7 @@ class ConnectRepoRequest(BaseModel):
     """Payload for connecting a new GitHub repository."""
     github_url: str = Field(..., description="Full GitHub repository URL")
     name: Optional[str] = Field(None, description="Optional custom display name")
+    workspace_id: Optional[uuid.UUID] = None
 
 
 class RegisterRequest(BaseModel):

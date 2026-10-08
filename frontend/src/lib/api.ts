@@ -45,6 +45,7 @@ export interface Repository {
   chunk_count: number;
   last_indexed_at: string | null;
   created_at: string;
+  workspace_id?: string | null;
 }
 
 export interface RepoStats {
@@ -344,6 +345,7 @@ export interface ChatMessage {
 export interface ConnectRepoRequest {
   github_url: string;
   name?: string;
+  workspace_id?: string;
 }
 
 // ─── API Client ───────────────────────────────────────────────────────────────
@@ -390,8 +392,8 @@ export const api = {
     return data;
   },
 
-  listRepos: async (): Promise<Repository[]> => {
-    const { data } = await client.get<Repository[]>("/repos");
+  listRepos: async (workspaceId?: string): Promise<Repository[]> => {
+    const { data } = await client.get<Repository[]>("/repos", { params: workspaceId ? { workspace_id: workspaceId } : undefined });
     return data;
   },
 

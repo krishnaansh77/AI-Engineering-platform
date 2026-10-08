@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { GitBranch, Plus, AlertCircle } from "lucide-react";
-import { api, Repository, getErrorMessage } from "@/lib/api";
+import { api, Repository, Workspace, getErrorMessage } from "@/lib/api";
 import RepoCard from "@/components/RepoCard";
 import EmptyState from "@/components/EmptyState";
 
@@ -11,14 +11,29 @@ export default function HomePage() {
   const [repos, setRepos] = useState<Repository[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaceId, setWorkspaceId] = useState("");
+
+  const loadRepositories = (selectedWorkspaceId?: string) => {
+    setLoading(true);
+    api.listRepos(selectedWorkspaceId || undefined).then(setRepos).catch((e) => setError(getErrorMessage(e))).finally(() => setLoading(false));
+  };
 
   useEffect(() => {
-    api
-      .listRepos()
-      .then(setRepos)
-      .catch((e) => setError(getErrorMessage(e)))
-      .finally(() => setLoading(false));
+    api.listWorkspaces().then((items) => {
+      setWorkspaces(items);
+      const stored = window.localStorage.getItem("aise_active_workspace");
+      const selected = items.some((item) => item.id === stored) ? stored || "" : items[0]?.id || "";
+      setWorkspaceId(selected);
+      loadRepositories(selected);
+    }).catch(() => loadRepositories());
   }, []);
+
+  const changeWorkspace = (value: string) => {
+    setWorkspaceId(value);
+    window.localStorage.setItem("aise_active_workspace", value);
+    loadRepositories(value);
+  };
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
@@ -39,6 +54,7 @@ export default function HomePage() {
           Connect Repository
         </Link>
       </div>
+      {workspaces.length > 0 && <div className="mb-6 flex items-center gap-3"><label htmlFor="active-workspace" className="text-sm font-medium text-slate-700">Workspace</label><select id="active-workspace" value={workspaceId} onChange={(event) => changeWorkspace(event.target.value)} className="px-3 py-2 bg-white border border-slate-300 rounded-lg text-sm">{workspaces.map((workspace) => <option key={workspace.id} value={workspace.id}>{workspace.name} · {workspace.role}</option>)}</select></div>}
 
       {/* Error */}
       {error && (
