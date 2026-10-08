@@ -118,6 +118,21 @@ export interface SourceFilePreview {
   content: string;
 }
 
+export interface SearchResult {
+  file_path: string;
+  symbol_name: string | null;
+  chunk_type: string;
+  start_line: number;
+  end_line: number;
+  snippet: string;
+  score: number;
+}
+
+export interface SearchResponse {
+  results: SearchResult[];
+  query: string;
+}
+
 export interface RepositoryTourFile {
   file_path: string;
   connections: number;
@@ -284,6 +299,11 @@ export const api = {
 
   getDocumentation: async (repoId: string): Promise<DocumentationInventory> => {
     const { data } = await client.get<DocumentationInventory>(`/repos/${repoId}/documentation`);
+    return data;
+  },
+
+  searchRepo: async (repoId: string, query: string, topK = 8): Promise<SearchResponse> => {
+    const { data } = await client.get<SearchResponse>(`/repos/${repoId}/search`, { params: { q: query, top_k: topK } });
     return data;
   },
 };

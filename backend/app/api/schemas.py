@@ -78,6 +78,21 @@ class QueryResponse(BaseModel):
     cached: bool = False
 
 
+class SearchResultSchema(BaseModel):
+    file_path: str
+    symbol_name: Optional[str] = None
+    chunk_type: str
+    start_line: int
+    end_line: int
+    snippet: str
+    score: float
+
+
+class SearchResponse(BaseModel):
+    results: List[SearchResultSchema]
+    query: str
+
+
 class FeedbackRequest(BaseModel):
     """User rating for a generated repository answer."""
     question: str = Field(..., min_length=1, max_length=10000)

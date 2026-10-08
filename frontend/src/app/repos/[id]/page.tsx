@@ -25,6 +25,7 @@ import FeedbackSummaryPanel from "@/components/FeedbackSummaryPanel";
 import QueryMetricsPanel from "@/components/QueryMetricsPanel";
 import RepositoryTourPanel from "@/components/RepositoryTourPanel";
 import DocumentationPanel from "@/components/DocumentationPanel";
+import CodeSearchPanel from "@/components/CodeSearchPanel";
 import { formatRelativeTime, getLanguageIcon } from "@/lib/utils";
 
 export default function RepoDetailPage() {
@@ -244,6 +245,8 @@ export default function RepoDetailPage() {
       {repo.status === "ready" && <RepositoryTourPanel repoId={id} />}
 
       {repo.status === "ready" && <DocumentationPanel repoId={id} />}
+
+      {repo.status === "ready" && <CodeSearchPanel repoId={id} />}
 
       {repo.status === "ready" && <GitHistoryPanel repoId={id} />}
 

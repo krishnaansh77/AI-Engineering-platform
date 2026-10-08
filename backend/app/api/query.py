@@ -5,12 +5,12 @@ import json
 import time
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis import asyncio as redis
 
-from app.api.schemas import CitationSchema, FeedbackRequest, QueryRequest, QueryResponse
+from app.api.schemas import CitationSchema, FeedbackRequest, QueryRequest, QueryResponse, SearchResponse, SearchResultSchema
 from app.config import settings
 from app.database import get_db
 from app.models.repository import Repository
@@ -152,6 +152,45 @@ async def query_repository(
     )
     await _write_cached_query(cache_key, response.model_dump())
     return response
+
+
+@router.get("/repos/{repo_id}/search", response_model=SearchResponse)
+async def search_repository(
+    repo_id: uuid.UUID,
+    q: str = Query(..., min_length=1, max_length=500),
+    top_k: int = Query(8, ge=1, le=20),
+    db: AsyncSession = Depends(get_db),
+) -> SearchResponse:
+    """Search repository code using hybrid retrieval without an LLM call."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repo = result.scalar_one_or_none()
+    if not repo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repo.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before it can be searched.")
+
+    chunks = await RetrievalService().retrieve(
+        query=q,
+        repo_id=repo_id,
+        db=db,
+        top_k=settings.RETRIEVAL_TOP_K,
+        final_k=top_k,
+    )
+    return SearchResponse(
+        query=q,
+        results=[
+            SearchResultSchema(
+                file_path=chunk.file_path,
+                symbol_name=chunk.symbol_name,
+                chunk_type=chunk.chunk_type,
+                start_line=chunk.start_line,
+                end_line=chunk.end_line,
+                snippet=chunk.content[:800],
+                score=round(chunk.score, 6),
+            )
+            for chunk in chunks
+        ],
+    )
 
 
 @router.post("/repos/{repo_id}/feedback", status_code=status.HTTP_201_CREATED)
