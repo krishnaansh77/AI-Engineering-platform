@@ -11,7 +11,7 @@ import git
 
 logger = logging.getLogger(__name__)
 
-# Languages we support in Phase 1
+# Languages currently supported by the parser
 SUPPORTED_EXTENSIONS: Dict[str, str] = {
     ".py": "python",
     ".js": "javascript",

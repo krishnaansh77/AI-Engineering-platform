@@ -19,7 +19,7 @@ Embedding Pipeline ──→ PostgreSQL + pgvector
       ↓                          ↕
 BM25 Index ←──── Hybrid Retriever (RRF Fusion)
       ↓
-LLM (OpenAI GPT-4o)
+LLM (Gemini / OpenAI provider)
       ↓
 Answer + Source Citations (file · function · lines)
 ```
@@ -28,8 +28,8 @@ Answer + Source Citations (file · function · lines)
 
 | Phase | Features | Status |
 |-------|----------|--------|
-| **Phase 1** | GitHub integration · Code parsing · Hybrid RAG · Q&A · Citations | 🚧 In Progress |
-| **Phase 2** | Dependency graph · Architecture explorer · Git history · Change impact | 🔲 Planned |
+| **Phase 1** | GitHub integration · Code parsing · Hybrid RAG · Q&A · Citations | ✅ Complete |
+| **Phase 2** | Dependency graph · Architecture explorer · Git history · Change impact | ✅ Complete |
 | **Phase 3** | PR analysis · Onboarding · Issue intelligence · Test coverage · Debt | 🔲 Planned |
 | **Phase 4** | RBAC · RAG eval · Multi-repo · Agents · Observability · Local LLM | 🔲 Planned |
 
@@ -40,7 +40,7 @@ Answer + Source Citations (file · function · lines)
 ### Prerequisites
 
 - Docker & Docker Compose
-- OpenAI API key
+- LLM and embedding provider API key (Gemini is supported)
 - GitHub Personal Access Token (`repo` scope)
 
 ### Setup
@@ -52,7 +52,7 @@ cd "AI Software Engineering Intelligence Platform"
 
 # 2. Configure environment
 cp .env.example .env
-# Edit .env — fill in OPENAI_API_KEY and GITHUB_PAT
+# Edit .env — fill in the provider key and GITHUB_PAT when indexing private repositories
 
 # 3. Start everything
 docker-compose up --build

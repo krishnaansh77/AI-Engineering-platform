@@ -58,7 +58,7 @@ export default function RootLayout({
 
           {/* Footer */}
           <div className="px-5 py-4 border-t border-slate-800">
-            <p className="text-slate-500 text-xs">Phase 1 · Core RAG</p>
+            <p className="text-slate-500 text-xs">Phase 2 · Repository Intelligence</p>
           </div>
         </aside>
 

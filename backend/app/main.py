@@ -64,7 +64,7 @@ async def root() -> dict:
     """Root info endpoint."""
     return {
         "platform": "AI Software Engineering Intelligence Platform",
-        "phase": "Phase 1 - Foundation & Core RAG",
+        "phase": "Phase 2 - Repository Intelligence",
         "status": "online",
         "docs_url": "/docs",
         "llm_provider": settings.LLM_PROVIDER,
