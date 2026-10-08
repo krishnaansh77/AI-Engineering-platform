@@ -336,3 +336,24 @@ async def get_repository_documentation(
     if not repository.clone_path:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository clone is unavailable.")
     return {"documents": GitHubService().list_documentation_files(repository.clone_path)}
+
+
+@router.get("/{repo_id}/pr-analysis/latest")
+async def analyze_latest_repository_change(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return PR-style review signals for the latest local commit."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before change analysis is available.")
+    if not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository clone is unavailable.")
+    try:
+        return GitHubService().analyze_latest_commit(repository.clone_path)
+    except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError, ValueError) as exc:
+        logger.warning("Latest change unavailable for repository %s: %s", repo_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Latest change is unavailable.")

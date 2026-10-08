@@ -37,6 +37,17 @@ class TestGitHubHistory(unittest.TestCase):
             self.assertEqual(docs[0]["file_path"], "README.md")
             self.assertIn("Project", docs[0]["content"])
 
+    def test_analyzes_latest_commit_file_categories(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = git.Repo.init(directory)
+            path = Path(directory) / "service.py"
+            path.write_text("print('one')\n")
+            repo.index.add([str(path)])
+            repo.index.commit("Add service")
+            analysis = GitHubService().analyze_latest_commit(directory)
+            self.assertEqual(analysis["source_files"], ["service.py"])
+            self.assertTrue(analysis["recommendations"])
+
 
 if __name__ == "__main__":
     unittest.main()

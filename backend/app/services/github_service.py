@@ -276,6 +276,35 @@ class GitHubService:
             )
         return documentation
 
+    def analyze_latest_commit(self, clone_path: str) -> Dict:
+        """Summarize the latest local commit for PR-style review signals."""
+        repo = git.Repo(clone_path)
+        commit = repo.head.commit
+        changed_files = sorted(commit.stats.files.keys())
+        test_files = [path for path in changed_files if "test" in Path(path).name.lower() or "tests" in Path(path).parts]
+        documentation_files = [path for path in changed_files if Path(path).suffix.lower() in {".md", ".mdx", ".rst"}]
+        source_files = [path for path in changed_files if path not in test_files and path not in documentation_files]
+        recommendations = []
+        if source_files and not test_files:
+            recommendations.append("Review or add tests for the changed source files.")
+        if source_files and not documentation_files:
+            recommendations.append("Check whether developer documentation needs an update.")
+        if not recommendations:
+            recommendations.append("No obvious test or documentation gaps detected from file names.")
+        return {
+            "sha": commit.hexsha,
+            "short_sha": commit.hexsha[:7],
+            "message": (commit.message or "").splitlines()[0][:240],
+            "author": commit.author.name or "Unknown",
+            "changed_files": changed_files,
+            "source_files": source_files,
+            "test_files": test_files,
+            "documentation_files": documentation_files,
+            "insertions": int(commit.stats.total.get("insertions", 0)),
+            "deletions": int(commit.stats.total.get("deletions", 0)),
+            "recommendations": recommendations,
+        }
+
     def verify_webhook_signature(
         self, payload: bytes, signature_header: str, secret: str
     ) -> bool:

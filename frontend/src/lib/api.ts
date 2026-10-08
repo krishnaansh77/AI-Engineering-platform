@@ -157,6 +157,20 @@ export interface DocumentationInventory {
   documents: DocumentationFile[];
 }
 
+export interface LatestChangeAnalysis {
+  sha: string;
+  short_sha: string;
+  message: string;
+  author: string;
+  changed_files: string[];
+  source_files: string[];
+  test_files: string[];
+  documentation_files: string[];
+  insertions: number;
+  deletions: number;
+  recommendations: string[];
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -304,6 +318,11 @@ export const api = {
 
   searchRepo: async (repoId: string, query: string, topK = 8): Promise<SearchResponse> => {
     const { data } = await client.get<SearchResponse>(`/repos/${repoId}/search`, { params: { q: query, top_k: topK } });
+    return data;
+  },
+
+  getLatestChangeAnalysis: async (repoId: string): Promise<LatestChangeAnalysis> => {
+    const { data } = await client.get<LatestChangeAnalysis>(`/repos/${repoId}/pr-analysis/latest`);
     return data;
   },
 };
