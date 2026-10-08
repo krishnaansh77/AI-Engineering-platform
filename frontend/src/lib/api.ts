@@ -408,8 +408,8 @@ export const api = {
     return data;
   },
 
-  listIssues: async (repoId: string): Promise<{ issues: RepositoryIssue[] }> => {
-    const { data } = await client.get<{ issues: RepositoryIssue[] }>(`/repos/${repoId}/issues`);
+  listIssues: async (repoId: string, state: "open" | "closed" | "all" = "open"): Promise<{ issues: RepositoryIssue[]; cached?: boolean; state: string }> => {
+    const { data } = await client.get<{ issues: RepositoryIssue[]; cached?: boolean; state: string }>(`/repos/${repoId}/issues`, { params: { state } });
     return data;
   },
 

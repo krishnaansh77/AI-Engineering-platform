@@ -4,6 +4,7 @@ import hmac
 import os
 import tempfile
 import unittest
+from unittest.mock import AsyncMock, patch
 from app.services.github_service import GitHubService
 
 
@@ -69,6 +70,37 @@ class TestGitHubService(unittest.TestCase):
         self.assertFalse(
             self.service.verify_webhook_signature(payload, "bad_format", secret)
         )
+
+    def test_list_issues_rejects_unknown_state(self):
+        with self.assertRaises(ValueError):
+            import asyncio
+            asyncio.run(self.service.list_issues("https://github.com/acme/demo", state="unknown"))
+
+    def test_list_issues_filters_pull_requests(self):
+        import asyncio
+
+        response = unittest.mock.Mock(status_code=200)
+        response.json.return_value = [
+            {"number": 1, "title": "Bug", "body": "Details", "html_url": "https://github.com/acme/demo/issues/1", "labels": [], "created_at": "2026-01-01T00:00:00Z"},
+            {"number": 2, "title": "PR", "body": "", "html_url": "https://github.com/acme/demo/pull/2", "labels": [], "created_at": "2026-01-01T00:00:00Z", "pull_request": {"url": "x"}},
+        ]
+        response.raise_for_status = unittest.mock.Mock()
+
+        class FakeClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_):
+                return None
+
+            get = AsyncMock(return_value=response)
+
+        with patch("app.services.github_service.httpx.AsyncClient", return_value=FakeClient()):
+            issues = asyncio.run(self.service.list_issues("https://github.com/acme/demo", state="all"))
+
+        self.assertEqual([issue["number"] for issue in issues], [1])
+        FakeClient.get.assert_awaited_once()
+        self.assertEqual(FakeClient.get.await_args.kwargs["params"]["state"], "all")
 
 
 if __name__ == "__main__":

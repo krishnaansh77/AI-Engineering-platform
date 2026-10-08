@@ -1,17 +1,19 @@
 """API routes for repository management: connect, list, inspect, reindex, and delete."""
 import asyncio
+import json
 import logging
 import uuid
 import git
 import httpx
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Literal
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import PlainTextResponse
 from sqlalchemy import case, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis import asyncio as redis
 
 from app.api.schemas import (
     ConnectRepoRequest,
@@ -33,6 +35,28 @@ from app.services.retrieval_service import RetrievalService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
+
+
+async def _read_issue_cache(key: str) -> list | None:
+    client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        cached = await client.get(key)
+        return json.loads(cached) if cached else None
+    except Exception as exc:
+        logger.warning("Issue cache read failed: %s", exc)
+        return None
+    finally:
+        await client.aclose()
+
+
+async def _write_issue_cache(key: str, issues: list) -> None:
+    client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        await client.setex(key, 300, json.dumps(issues))
+    except Exception as exc:
+        logger.warning("Issue cache write failed: %s", exc)
+    finally:
+        await client.aclose()
 
 
 def _extract_full_name(github_url: str) -> str:
@@ -447,19 +471,25 @@ async def get_documentation_quality(
 async def list_repository_issues(
     repo_id: uuid.UUID,
     limit: int = 20,
+    state: Literal["open", "closed", "all"] = "open",
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    """List open GitHub issues for a connected repository."""
+    """List GitHub issues for a connected repository."""
     result = await db.execute(select(Repository).where(Repository.id == repo_id))
     repository = result.scalar_one_or_none()
     if not repository:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    cache_key = f"aise:issues:{repo_id}:{repository.last_indexed_at.isoformat() if repository.last_indexed_at else 'unindexed'}:{state}:{max(1, min(limit, 50))}"
+    cached = await _read_issue_cache(cache_key)
+    if cached is not None:
+        return {"issues": cached, "cached": True, "state": state}
     try:
-        issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, limit)
+        issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, limit, state)
     except (httpx.HTTPError, ValueError) as exc:
         logger.warning("Could not fetch issues for repository %s: %s", repo_id, exc)
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable.") from exc
-    return {"issues": issues}
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable or rate-limited. Retry shortly or configure GITHUB_PAT.") from exc
+    await _write_issue_cache(cache_key, issues)
+    return {"issues": issues, "cached": False, "state": state}
 
 
 @router.get("/{repo_id}/issues/{issue_number}/analysis")
@@ -476,12 +506,12 @@ async def analyze_repository_issue(
     if repository.status != "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before issue analysis is available.")
     try:
-        issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, 50)
+        issues = await GitHubService().list_issues(repository.github_url, settings.GITHUB_PAT, 50, "all")
     except (httpx.HTTPError, ValueError) as exc:
-        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable.") from exc
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="GitHub issues are unavailable or rate-limited. Retry shortly or configure GITHUB_PAT.") from exc
     issue = next((item for item in issues if item["number"] == issue_number), None)
     if not issue:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Open issue not found")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Issue not found")
     chunks = await RetrievalService().retrieve(
         query=f"{issue['title']}\n{issue['body']}",
         repo_id=repo_id,

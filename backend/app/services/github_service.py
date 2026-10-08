@@ -9,6 +9,7 @@ from typing import Dict, List, Optional
 
 import git
 import httpx
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -354,8 +355,8 @@ class GitHubService:
             "recommendations": recommendations,
         }
 
-    async def list_issues(self, github_url: str, pat: str = "", limit: int = 20) -> List[Dict]:
-        """Fetch open GitHub issues, excluding pull requests."""
+    async def list_issues(self, github_url: str, pat: str = "", limit: int = 20, state: str = "open") -> List[Dict]:
+        """Fetch GitHub issues with bounded retries, excluding pull requests."""
         parts = [part for part in github_url.rstrip("/").split("/") if part]
         if len(parts) < 2:
             raise ValueError("Invalid GitHub repository URL")
@@ -363,9 +364,25 @@ class GitHubService:
         headers = {"Accept": "application/vnd.github+json"}
         if pat.strip():
             headers["Authorization"] = f"Bearer {pat.strip()}"
+        if state not in {"open", "closed", "all"}:
+            raise ValueError("Issue state must be open, closed, or all")
         async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
-            response = await client.get(api_url, params={"state": "open", "per_page": max(1, min(limit, 50))})
-            response.raise_for_status()
+            response = None
+            for attempt in range(3):
+                try:
+                    response = await client.get(api_url, params={"state": state, "per_page": max(1, min(limit, 50))})
+                    if response.status_code == 429 or response.status_code >= 500:
+                        if attempt < 2:
+                            await asyncio.sleep(0.25 * (2 ** attempt))
+                            continue
+                    response.raise_for_status()
+                    break
+                except (httpx.TimeoutException, httpx.NetworkError):
+                    if attempt == 2:
+                        raise
+                    await asyncio.sleep(0.25 * (2 ** attempt))
+            if response is None:
+                raise httpx.HTTPError("GitHub did not return a response")
             issues = response.json()
         return [
             {
