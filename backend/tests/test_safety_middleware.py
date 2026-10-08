@@ -95,6 +95,15 @@ class TestSafetyMiddleware(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(messages[0]["status"], 200)
         self.assertTrue(client.closed)
 
+    async def test_auth_route_uses_auth_limit(self):
+        client = FakeRedis(count=9)
+        middleware = SafetyMiddleware(successful_app)
+        with patch.object(main_module.redis, "from_url", return_value=client), patch.object(
+            main_module.settings, "AUTH_RATE_LIMIT_PER_MINUTE", 9
+        ):
+            messages = await call_middleware(middleware, "/auth/login")
+        self.assertEqual(messages[0]["status"], 429)
+
 
 if __name__ == "__main__":
     unittest.main()

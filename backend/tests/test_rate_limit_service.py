@@ -13,3 +13,6 @@ class TestRateLimitService(unittest.TestCase):
 
     def test_read_only_route_uses_default_bucket(self):
         self.assertEqual(rate_limit_for_path("/repos/abc/history", 120, 30), (120, "default"))
+
+    def test_auth_route_uses_auth_bucket_when_configured(self):
+        self.assertEqual(rate_limit_for_path("/auth/login", 120, 30, 10), (10, "auth"))

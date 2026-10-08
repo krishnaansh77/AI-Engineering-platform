@@ -32,7 +32,7 @@ class SafetyMiddleware:
         self.app = app
 
     async def __call__(self, scope, receive, send):
-        if scope["type"] != "http" or not scope.get("path", "").startswith(("/repos", "/query")):
+        if scope["type"] != "http" or not scope.get("path", "").startswith(("/auth", "/repos", "/query")):
             await self.app(scope, receive, send)
             return
         headers = dict(scope.get("headers") or [])
@@ -50,6 +50,7 @@ class SafetyMiddleware:
             scope.get("path", ""),
             settings.API_RATE_LIMIT_PER_MINUTE,
             settings.API_EXPENSIVE_RATE_LIMIT_PER_MINUTE,
+            settings.AUTH_RATE_LIMIT_PER_MINUTE,
         )
         bucket = int(time.time() // 60)
         key = f"aise:rate:{route_bucket}:{client_host}:{bucket}"
