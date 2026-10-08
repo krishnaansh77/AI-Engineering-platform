@@ -15,7 +15,7 @@ redis==5.0.7
 
 # GitHub / Git
 gitpython==3.1.43
-httpx==0.27.0
+httpx==0.28.1
 
 # Code parsing
 tree-sitter>=0.22.0
