@@ -88,7 +88,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added explicit user-triggered Markdown export for generated documentation previews without automatic repository writes
 - Added global visible keyboard focus styling and reduced-motion support
 - Added helpful versus unhelpful citation coverage breakdowns for feedback-driven quality analysis
-- Added a real PostgreSQL/pgvector endpoint smoke test for retrieval evaluation, executed in the seeded CI job
+- Added real PostgreSQL/pgvector endpoint smoke tests for retrieval evaluation and feedback citation aggregation, executed in the seeded CI job
 
 Phase 3 is not finished yet. The remaining work is listed below.
 

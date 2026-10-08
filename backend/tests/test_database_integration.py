@@ -11,12 +11,13 @@ from importlib.util import find_spec
 
 DB_INTEGRATION_ENABLED = os.getenv("RUN_DB_INTEGRATION") == "1" and find_spec("fastapi") is not None
 if DB_INTEGRATION_ENABLED:
-    from app.api.query import evaluate_repository_retrieval
+    from app.api.query import evaluate_repository_retrieval, get_feedback_summary
     from app.api.schemas import EvaluationCase, EvaluationRequest
     from app.database import AsyncSessionLocal, create_all_tables, engine
     from app.models.code_chunk import CodeChunk
     from app.models.repository import Repository
     from app.models.source_file import SourceFile
+    from app.models.query_feedback import QueryFeedback
     from app.providers.embedding.mock_embedding import MockEmbeddingProvider
 
 
@@ -63,6 +64,24 @@ class TestDatabaseIntegration(unittest.IsolatedAsyncioTestCase):
                 imports=[],
                 embedding=await provider.embed_single(content),
             ))
+            session.add_all([
+                QueryFeedback(
+                    repository_id=self.repo_id,
+                    question="How is the database initialized?",
+                    rating="helpful",
+                    model="mock/local",
+                    retrieval_count=3,
+                    citation_count=2,
+                ),
+                QueryFeedback(
+                    repository_id=self.repo_id,
+                    question="Where is authentication?",
+                    rating="not_helpful",
+                    model="mock/local",
+                    retrieval_count=3,
+                    citation_count=0,
+                ),
+            ])
             await session.commit()
 
     async def asyncTearDown(self):
@@ -86,6 +105,15 @@ class TestDatabaseIntegration(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result["summary"]["case_count"], 1)
         self.assertEqual(result["summary"]["recall_at_k"], 1.0)
         self.assertEqual(result["cases"][0]["matched_files"], ["backend/app/database.py"])
+
+    async def test_feedback_summary_reports_citation_breakdown(self):
+        async with AsyncSessionLocal() as session:
+            result = await get_feedback_summary(self.repo_id, session)
+        self.assertEqual(result["total"], 2)
+        self.assertEqual(result["helpful_average_citation_count"], 2.0)
+        self.assertEqual(result["not_helpful_average_citation_count"], 0.0)
+        self.assertEqual(result["helpful_citation_coverage_rate"], 1.0)
+        self.assertEqual(result["not_helpful_citation_coverage_rate"], 0.0)
 
 
 if __name__ == "__main__":
