@@ -52,6 +52,10 @@ The result reports Recall@K, MRR, expected-file hit rate, matched files, and
 retrieval latency. Use mock providers for repeatable, zero-cost CI runs; use a
 real embedding provider only when measuring production retrieval quality.
 
+For a fully local, zero-cost evaluation, set `EMBEDDING_PROVIDER=mock` before
+indexing the repository and use the same provider for evaluation queries. Do
+not mix mock query vectors with an index built using Gemini or OpenAI vectors.
+
 ## Interpreting results
 
 - **Recall@K**: how many expected files were retrieved on average.

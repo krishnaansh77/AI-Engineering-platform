@@ -55,7 +55,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo-id", help="Indexed repository UUID")
     parser.add_argument("--benchmark", type=Path, default=DEFAULT_BENCHMARK)
-    parser.add_argument("--base-url", default="http://localhost:8000/api")
+    # The benchmark talks directly to FastAPI, whose repository routes are
+    # rooted at /repos. The frontend may proxy them through /api.
+    parser.add_argument("--base-url", default="http://localhost:8000")
     parser.add_argument(
         "--validate-only",
         action="store_true",
