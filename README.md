@@ -136,6 +136,7 @@ EMBEDDING_PROVIDER=openai  # or: local (Phase 4, Ollama)
 
 See `PROJECT_PLAN.md` for the current implementation status, verified baseline, and future roadmap.
 See `PHASES.md` for the detailed phase checklist.
+See `docs/deployment.md` for the production deployment runbook.
 
 ## Security notes
 

@@ -63,6 +63,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - GitHub Actions CI for backend tests, frontend production builds, and repository hygiene checks without provider secrets
 - Docker readiness checks for the backend and dependency-gated frontend startup; README quick-start and security notes refreshed
 - Backend status metadata now reflects Phase 3 and `/health` checks both PostgreSQL and Redis readiness
+- Production deployment runbook added at `docs/deployment.md`; no external deployment has been performed yet
 - Accessibility polish across Phase 3 panels: labels for controls, visible keyboard focus states, and live alert/status regions
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
