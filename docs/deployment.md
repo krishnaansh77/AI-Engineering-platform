@@ -65,6 +65,7 @@ The health response should report `status: healthy`, `database: healthy`, and `r
 - Do not expose PostgreSQL or Redis publicly.
 - Set provider budgets and monitor quota failures.
 - Keep repository clone storage persistent and access-controlled.
+- Verify both Docker build contexts exclude `.env`, Git metadata, caches, and generated dependencies before publishing images.
 - Run the opt-in secret scan before indexing sensitive repositories, understanding that it is heuristic.
 - Configure log retention without logging API keys, PATs, prompts containing secrets, or generated source unnecessarily.
 
