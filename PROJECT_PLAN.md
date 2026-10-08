@@ -86,6 +86,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Surfaced answer citation coverage in the repository quality dashboard
 - Added accessible labels, live regions, alert semantics, and selection states across core repository and chat controls
 - Added explicit user-triggered Markdown export for generated documentation previews without automatic repository writes
+- Added a real PostgreSQL/pgvector endpoint smoke test for retrieval evaluation, executed in the seeded CI job
 
 Phase 3 is not finished yet. The remaining work is listed below.
 
@@ -127,7 +128,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 
 ### Phase 3B — Quality and safety
 
-1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis — core GitHub, parser, graph, cache, schema, and PR-analysis boundaries are covered; database-backed endpoint tests remain.
+1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis — core GitHub, parser, graph, cache, schema, and PR-analysis boundaries are covered; a database-backed retrieval-evaluation endpoint smoke test now runs in CI.
 2. Add API rate limits and request-size limits where appropriate — baseline, endpoint-specific protection, and ASGI middleware tests complete.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
 4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
