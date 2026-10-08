@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import String, DateTime, JSON, Integer, Text, func
+from sqlalchemy import String, DateTime, JSON, Integer, Text, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
@@ -47,4 +47,9 @@ class Repository(Base):
     # GitHub webhook
     github_webhook_id: Mapped[Optional[str]] = mapped_column(
         String(100), nullable=True
+    )
+
+    # Nullable during migration so existing repositories remain usable.
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
     )

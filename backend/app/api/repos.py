@@ -37,7 +37,8 @@ from app.services.github_service import GitHubService
 from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
 from app.services.secret_scan_service import SecretScanService
-from app.api.auth import require_roles
+from app.api.auth import assert_repository_owner, require_roles
+from app.models.user import User
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
@@ -103,7 +104,7 @@ def _dispatch_indexing_task(repo_id: uuid.UUID) -> None:
 async def connect_repository(
     payload: ConnectRepoRequest,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(require_roles("owner", "admin")),
+    user: User = Depends(require_roles("owner", "admin", "member")),
 ) -> Repository:
     """Connect a new GitHub repository and initiate background indexing."""
     try:
@@ -132,6 +133,7 @@ async def connect_repository(
         full_name=full_name,
         github_url=payload.github_url.rstrip("/"),
         status="pending",
+        owner_id=user.id,
     )
     db.add(repo)
     await db.commit()
@@ -172,7 +174,7 @@ async def get_repository(
 async def reindex_repository(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(require_roles("owner", "admin", "member")),
+    user: User = Depends(require_roles("owner", "admin", "member")),
 ) -> dict:
     """Trigger a manual re-index of the repository."""
     stmt = select(Repository).where(Repository.id == repo_id)
@@ -183,6 +185,7 @@ async def reindex_repository(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Repository {repo_id} not found",
         )
+    assert_repository_owner(user, repo.owner_id)
 
     repo.status = "pending"
     repo.error_message = None
@@ -196,7 +199,7 @@ async def reindex_repository(
 async def delete_repository(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(require_roles("owner", "admin")),
+    user: User = Depends(require_roles("owner", "admin", "member")),
 ) -> None:
     """Delete a repository and all associated files and chunks (cascading)."""
     stmt = select(Repository).where(Repository.id == repo_id)
@@ -207,6 +210,7 @@ async def delete_repository(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Repository {repo_id} not found",
         )
+    assert_repository_owner(user, repo.owner_id)
     await db.delete(repo)
     await db.commit()
 
@@ -438,13 +442,14 @@ async def save_documentation(
     repo_id: uuid.UUID,
     payload: DocumentationSaveRequest,
     db: AsyncSession = Depends(get_db),
-    _user=Depends(require_roles("owner", "admin", "member")),
+    user: User = Depends(require_roles("owner", "admin", "member")),
 ) -> dict:
     """Return a diff first, or commit only after explicit confirmation."""
     result = await db.execute(select(Repository).where(Repository.id == repo_id))
     repository = result.scalar_one_or_none()
     if not repository:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    assert_repository_owner(user, repository.owner_id)
     try:
         return await GitHubService().save_documentation_file(
             repository.github_url,

@@ -57,6 +57,12 @@ def require_roles(*allowed_roles: str):
     return dependency
 
 
+def assert_repository_owner(user: User, owner_id: uuid.UUID | None) -> None:
+    """Allow admins/owners globally; members may mutate their own repositories."""
+    if owner_id is not None and user.role not in {"owner", "admin"} and owner_id != user.id:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You do not have permission to modify this repository.")
+
+
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(user)

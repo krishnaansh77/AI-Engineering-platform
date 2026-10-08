@@ -1,7 +1,10 @@
 """Unit tests for Phase 4 password and token primitives."""
 import uuid
 import unittest
+from unittest.mock import Mock
+from fastapi import HTTPException
 from app.services.auth_service import create_access_token, decode_access_token, hash_password, verify_password
+from app.api.auth import assert_repository_owner
 
 
 class TestAuthService(unittest.TestCase):
@@ -21,6 +24,13 @@ class TestAuthService(unittest.TestCase):
         claims = decode_access_token(create_access_token(user_id, "admin"))
         self.assertEqual(claims["sub"], str(user_id))
         self.assertEqual(claims["role"], "admin")
+
+    def test_member_can_modify_only_owned_repository(self):
+        user = Mock(id=uuid.uuid4(), role="member")
+        assert_repository_owner(user, user.id)
+        with self.assertRaises(HTTPException) as context:
+            assert_repository_owner(user, uuid.uuid4())
+        self.assertEqual(context.exception.status_code, 403)
 
 
 if __name__ == "__main__":
