@@ -18,6 +18,7 @@ import { api, Repository, getErrorMessage } from "@/lib/api";
 import StatusBadge from "@/components/StatusBadge";
 import IndexingProgress from "@/components/IndexingProgress";
 import DependencyGraphPanel from "@/components/DependencyGraphPanel";
+import GitHistoryPanel from "@/components/GitHistoryPanel";
 import { formatRelativeTime, getLanguageIcon } from "@/lib/utils";
 
 export default function RepoDetailPage() {
@@ -225,6 +226,8 @@ export default function RepoDetailPage() {
       )}
 
       {repo.status === "ready" && <DependencyGraphPanel repoId={id} />}
+
+      {repo.status === "ready" && <GitHistoryPanel repoId={id} />}
 
       {/* CTA — Ask a question */}
       {repo.status === "ready" && (

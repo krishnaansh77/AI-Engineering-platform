@@ -49,6 +49,23 @@ export interface QueryResponse {
   retrieval_count: number;
 }
 
+export interface GitCommit {
+  sha: string;
+  short_sha: string;
+  message: string;
+  author: string;
+  committed_at: string;
+  files: string[];
+  files_changed: number;
+  insertions: number;
+  deletions: number;
+}
+
+export interface GitHistory {
+  commits: GitCommit[];
+  count: number;
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -124,6 +141,11 @@ export const api = {
 
   getFileDependencyGraph: async (id: string): Promise<DependencyGraph> => {
     const { data } = await client.get<DependencyGraph>(`/repos/${id}/graph/files`);
+    return data;
+  },
+
+  getHistory: async (id: string, limit = 20): Promise<GitHistory> => {
+    const { data } = await client.get<GitHistory>(`/repos/${id}/history`, { params: { limit } });
     return data;
   },
 

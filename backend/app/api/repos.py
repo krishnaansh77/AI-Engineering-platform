@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import uuid
+import git
 from typing import List
 from urllib.parse import urlparse
 
@@ -20,6 +21,7 @@ from app.models.repository import Repository
 from app.models.source_file import SourceFile
 from app.services.indexing_service import IndexingService
 from app.services.graph_service import DependencyGraphService
+from app.services.github_service import GitHubService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
@@ -221,3 +223,26 @@ async def get_file_dependency_graph(
             detail="Repository must finish indexing before its dependency graph is available.",
         )
     return await DependencyGraphService().build_file_graph(repo_id, db)
+
+
+@router.get("/{repo_id}/history")
+async def get_repository_history(
+    repo_id: uuid.UUID,
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return recent commit history from the repository's local clone."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before history is available.")
+    if not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository clone is unavailable.")
+    try:
+        commits = GitHubService().get_commit_history(repository.clone_path, limit)
+    except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError) as exc:
+        logger.warning("History unavailable for repository %s: %s", repo_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository history is unavailable.")
+    return {"commits": commits, "count": len(commits)}

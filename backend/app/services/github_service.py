@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -204,6 +205,30 @@ class GitHubService:
             for chunk in iter(lambda: f.read(65536), b""):
                 sha256.update(chunk)
         return sha256.hexdigest()
+
+    def get_commit_history(self, clone_path: str, limit: int = 20) -> List[Dict]:
+        """Return recent commits and the files changed in each commit."""
+        repo = git.Repo(clone_path)
+        commits: List[Dict] = []
+        safe_limit = max(1, min(limit, 100))
+        for commit in repo.iter_commits(max_count=safe_limit):
+            stats = commit.stats.total
+            commits.append(
+                {
+                    "sha": commit.hexsha,
+                    "short_sha": commit.hexsha[:7],
+                    "message": (commit.message or "").splitlines()[0][:240],
+                    "author": commit.author.name or "Unknown",
+                    "committed_at": datetime.fromtimestamp(
+                        commit.committed_date, tz=timezone.utc
+                    ).isoformat(),
+                    "files": sorted(commit.stats.files.keys()),
+                    "files_changed": int(stats.get("files", 0)),
+                    "insertions": int(stats.get("insertions", 0)),
+                    "deletions": int(stats.get("deletions", 0)),
+                }
+            )
+        return commits
 
     def verify_webhook_signature(
         self, payload: bytes, signature_header: str, secret: str
