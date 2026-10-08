@@ -131,6 +131,17 @@ export interface RepositoryTour {
   key_files: RepositoryTourFile[];
 }
 
+export interface DocumentationFile {
+  file_path: string;
+  title: string;
+  size_bytes: number;
+  content: string;
+}
+
+export interface DocumentationInventory {
+  documents: DocumentationFile[];
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -268,6 +279,11 @@ export const api = {
 
   getRepositoryTour: async (repoId: string): Promise<RepositoryTour> => {
     const { data } = await client.get<RepositoryTour>(`/repos/${repoId}/tour`);
+    return data;
+  },
+
+  getDocumentation: async (repoId: string): Promise<DocumentationInventory> => {
+    const { data } = await client.get<DocumentationInventory>(`/repos/${repoId}/documentation`);
     return data;
   },
 };

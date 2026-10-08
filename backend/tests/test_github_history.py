@@ -29,6 +29,14 @@ class TestGitHubHistory(unittest.TestCase):
             with self.assertRaises(ValueError):
                 GitHubService().read_source_file(directory, "../outside.py")
 
+    def test_lists_documentation_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "README.md"
+            path.write_text("# Project\n")
+            docs = GitHubService().list_documentation_files(directory)
+            self.assertEqual(docs[0]["file_path"], "README.md")
+            self.assertIn("Project", docs[0]["content"])
+
 
 if __name__ == "__main__":
     unittest.main()

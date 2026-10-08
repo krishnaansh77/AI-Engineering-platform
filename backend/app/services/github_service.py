@@ -250,6 +250,32 @@ class GitHubService:
             "content": candidate.read_text(encoding="utf-8", errors="replace"),
         }
 
+    def list_documentation_files(self, clone_path: str, max_files: int = 50) -> List[Dict]:
+        """Find repository documentation without indexing it as source code."""
+        root = Path(clone_path).resolve()
+        documentation: List[Dict] = []
+        supported = {".md", ".mdx", ".rst", ".txt"}
+        for file_path in sorted(root.rglob("*")):
+            if len(documentation) >= max_files or not file_path.is_file():
+                break
+            relative = file_path.relative_to(root)
+            parts = relative.parts
+            if any(part in SKIP_DIRS or part.startswith(".") for part in parts):
+                continue
+            if file_path.suffix.lower() not in supported:
+                continue
+            if file_path.stat().st_size > 200_000:
+                continue
+            documentation.append(
+                {
+                    "file_path": str(relative),
+                    "title": file_path.stem.replace("-", " ").replace("_", " ").title(),
+                    "size_bytes": file_path.stat().st_size,
+                    "content": file_path.read_text(encoding="utf-8", errors="replace"),
+                }
+            )
+        return documentation
+
     def verify_webhook_signature(
         self, payload: bytes, signature_header: str, secret: str
     ) -> bool:

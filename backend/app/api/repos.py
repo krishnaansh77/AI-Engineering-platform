@@ -319,3 +319,20 @@ async def get_repository_tour(
     if repository.status != "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before its tour is available.")
     return await DependencyGraphService().build_repository_tour(repo_id, db)
+
+
+@router.get("/{repo_id}/documentation")
+async def get_repository_documentation(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return safely bounded README and documentation files."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before documentation is available.")
+    if not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository clone is unavailable.")
+    return {"documents": GitHubService().list_documentation_files(repository.clone_path)}
