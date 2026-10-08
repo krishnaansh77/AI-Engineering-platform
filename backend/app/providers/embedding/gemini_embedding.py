@@ -1,4 +1,4 @@
-"""Google Gemini embedding provider using text-embedding-004."""
+"""Google Gemini embedding provider using gemini-embedding-001."""
 import asyncio
 import logging
 from typing import List
@@ -12,7 +12,7 @@ _BATCH_SIZE = 100  # Google embedding API limit per batch
 
 
 class GeminiEmbeddingProvider(EmbeddingProvider):
-    """Embedding provider using Google's text-embedding-004 model.
+    """Embedding provider using Google's gemini-embedding-001 model.
 
     Supports configurable Gemini embedding dimensions. We truncate/pad to
     match the configured EMBEDDING_DIMENSION.
@@ -23,7 +23,7 @@ class GeminiEmbeddingProvider(EmbeddingProvider):
 
         genai.configure(api_key=settings.GOOGLE_API_KEY)
         self._genai = genai
-        self._model = settings.GEMINI_EMBEDDING_MODEL  # "models/text-embedding-004"
+        self._model = settings.GEMINI_EMBEDDING_MODEL  # "models/gemini-embedding-001"
         self._dimension = settings.EMBEDDING_DIMENSION
 
     def get_dimension(self) -> int:

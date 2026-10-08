@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     # ── Embedding Provider ────────────────────────────────────────────────────
     EMBEDDING_PROVIDER: str = "openai"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    GEMINI_EMBEDDING_MODEL: str = "models/text-embedding-004"
+    GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-001"
     EMBEDDING_DIMENSION: int = 768  # 768 for Gemini embeddings, 1536 for OpenAI
 
     # ── GitHub ────────────────────────────────────────────────────────────────
