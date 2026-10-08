@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, GitBranch, Search } from "lucide-react";
+import Link from "next/link";
+import { ArrowDown, ArrowUp, GitBranch, MessageSquare, Search } from "lucide-react";
 import { api, DependencyGraph, getErrorMessage, SourceFilePreview } from "@/lib/api";
 
 interface DependencyGraphPanelProps {
@@ -204,7 +205,7 @@ export default function DependencyGraphPanel({ repoId }: DependencyGraphPanelPro
           <div className="border border-slate-200 rounded-lg overflow-hidden mt-3">
             <div className="flex items-center justify-between px-3 py-2 bg-slate-50 border-b border-slate-200">
               <p className="text-xs font-semibold text-slate-600">Source preview</p>
-              {source && <span className="text-[11px] text-slate-400">{source.language}</span>}
+              <div className="flex items-center gap-2">{source && <span className="text-[11px] text-slate-400">{source.language}</span>}{selected && <Link href={`/repos/${repoId}/chat?file=${encodeURIComponent(selected.file_path)}`} className="inline-flex items-center gap-1 text-[11px] text-sky-600 hover:text-sky-700"><MessageSquare className="w-3 h-3" />Ask AI</Link>}</div>
             </div>
             {sourceLoading ? (
               <div className="h-28 animate-pulse bg-slate-50" />

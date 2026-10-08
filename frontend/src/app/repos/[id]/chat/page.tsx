@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -24,6 +24,7 @@ const STARTER_QUESTIONS = [
 
 export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
   const [repo, setRepo] = useState<Repository | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -36,6 +37,11 @@ export default function ChatPage() {
   useEffect(() => {
     api.getRepo(id).then(setRepo).catch(console.error);
   }, [id]);
+
+  useEffect(() => {
+    const file = searchParams.get("file");
+    if (file && !input) setInput(`Explain the purpose and main responsibilities of ${file}`);
+  }, [searchParams, input]);
 
   // Scroll to bottom when messages change
   useEffect(() => {
