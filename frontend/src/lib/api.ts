@@ -171,6 +171,19 @@ export interface LatestChangeAnalysis {
   recommendations: string[];
 }
 
+export interface DebtSignal {
+  file_path: string;
+  signal: string;
+  value: number;
+  unit: string;
+}
+
+export interface TechnicalDebtSummary {
+  signals: DebtSignal[];
+  files_analyzed: number;
+  chunks_analyzed: number;
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -323,6 +336,11 @@ export const api = {
 
   getLatestChangeAnalysis: async (repoId: string): Promise<LatestChangeAnalysis> => {
     const { data } = await client.get<LatestChangeAnalysis>(`/repos/${repoId}/pr-analysis/latest`);
+    return data;
+  },
+
+  getTechnicalDebt: async (repoId: string): Promise<TechnicalDebtSummary> => {
+    const { data } = await client.get<TechnicalDebtSummary>(`/repos/${repoId}/technical-debt`);
     return data;
   },
 };

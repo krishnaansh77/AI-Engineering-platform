@@ -357,3 +357,18 @@ async def analyze_latest_repository_change(
     except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError, ValueError) as exc:
         logger.warning("Latest change unavailable for repository %s: %s", repo_id, exc)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Latest change is unavailable.")
+
+
+@router.get("/{repo_id}/technical-debt")
+async def get_technical_debt_signals(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return measurable structural hotspots for technical-debt review."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before debt signals are available.")
+    return await DependencyGraphService().build_debt_summary(repo_id, db)

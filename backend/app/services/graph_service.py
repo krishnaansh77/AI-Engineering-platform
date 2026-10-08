@@ -165,6 +165,40 @@ class DependencyGraphService:
             "key_files": key_files,
         }
 
+    async def build_debt_summary(self, repo_id: uuid.UUID, db: AsyncSession) -> dict:
+        """Return explainable structural debt signals, not a subjective quality score."""
+        from app.models.code_chunk import CodeChunk
+
+        graph = await self.build_file_graph(repo_id, db)
+        chunk_result = await db.execute(select(CodeChunk).where(CodeChunk.repository_id == repo_id))
+        chunks = list(chunk_result.scalars().all())
+        connection_counts: Dict[str, int] = {node["id"]: 0 for node in graph["nodes"]}
+        for edge in graph["edges"]:
+            connection_counts[edge["source"]] += 1
+            connection_counts[edge["target"]] += 1
+
+        max_chunk_lines: Dict[str, int] = {}
+        for chunk in chunks:
+            size = max(0, chunk.end_line - chunk.start_line + 1)
+            max_chunk_lines[chunk.file_path] = max(max_chunk_lines.get(chunk.file_path, 0), size)
+
+        hotspots = []
+        for path, count in sorted(connection_counts.items(), key=lambda item: -item[1])[:5]:
+            if count > 0:
+                hotspots.append({"file_path": path, "signal": "high connectivity", "value": count, "unit": "links"})
+        for path, lines in sorted(max_chunk_lines.items(), key=lambda item: -item[1])[:5]:
+            if lines >= 80:
+                hotspots.append({"file_path": path, "signal": "large code chunk", "value": lines, "unit": "lines"})
+
+        unique_hotspots = {}
+        for hotspot in hotspots:
+            unique_hotspots[(hotspot["file_path"], hotspot["signal"])] = hotspot
+        return {
+            "signals": sorted(unique_hotspots.values(), key=lambda item: (-item["value"], item["file_path"])),
+            "files_analyzed": len(graph["nodes"]),
+            "chunks_analyzed": len(chunks),
+        }
+
     @staticmethod
     def classify_layer(file_path: str) -> str:
         """Infer a useful architecture layer from a repository-relative path."""
