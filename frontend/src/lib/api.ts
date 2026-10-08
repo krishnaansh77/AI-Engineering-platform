@@ -191,6 +191,19 @@ export interface DocumentationPreview {
   saved: boolean;
 }
 
+export interface DocumentationSaveResult {
+  file_path: string;
+  branch: string;
+  commit_message: string;
+  existing: string;
+  diff: string;
+  current_sha: string | null;
+  changed: boolean;
+  saved: boolean;
+  commit_sha?: string;
+  commit_url?: string;
+}
+
 export interface SecretScanResult {
   heuristic: boolean;
   scanned_files: number;
@@ -413,6 +426,11 @@ export const api = {
 
   generateDocumentationPreview: async (repoId: string, filePath: string, audience = "developers"): Promise<DocumentationPreview> => {
     const { data } = await client.post<DocumentationPreview>(`/repos/${repoId}/documentation/generate-preview`, { file_path: filePath, audience });
+    return data;
+  },
+
+  saveDocumentation: async (repoId: string, payload: { file_path: string; content: string; branch: string; commit_message: string; confirm: boolean }): Promise<DocumentationSaveResult> => {
+    const { data } = await client.post<DocumentationSaveResult>(`/repos/${repoId}/documentation/save`, payload);
     return data;
   },
 

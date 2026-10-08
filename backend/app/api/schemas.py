@@ -115,6 +115,15 @@ class DocumentationPreviewRequest(BaseModel):
     audience: str = Field("developers", min_length=1, max_length=100)
 
 
+class DocumentationSaveRequest(BaseModel):
+    """Preview or explicitly commit generated documentation to GitHub."""
+    file_path: str = Field(..., min_length=1, max_length=500)
+    content: str = Field(..., min_length=1, max_length=50_000)
+    branch: str = Field("main", min_length=1, max_length=200)
+    commit_message: str = Field("Update generated documentation", min_length=1, max_length=200)
+    confirm: bool = False
+
+
 class FeedbackRequest(BaseModel):
     """User rating for a generated repository answer."""
     question: str = Field(..., min_length=1, max_length=10000)

@@ -18,6 +18,7 @@ from redis import asyncio as redis
 from app.api.schemas import (
     ConnectRepoRequest,
     DocumentationPreviewRequest,
+    DocumentationSaveRequest,
     PRComparisonRequest,
     RepoStatsResponse,
     RepositoryResponse,
@@ -426,6 +427,36 @@ async def generate_documentation_preview(
         "completion_tokens": completion_tokens,
         "saved": False,
     }
+
+
+@router.post("/{repo_id}/documentation/save")
+async def save_documentation(
+    repo_id: uuid.UUID,
+    payload: DocumentationSaveRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return a diff first, or commit only after explicit confirmation."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    try:
+        return await GitHubService().save_documentation_file(
+            repository.github_url,
+            settings.GITHUB_PAT,
+            payload.file_path,
+            payload.content,
+            payload.branch,
+            payload.commit_message,
+            payload.confirm,
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=error_detail("GITHUB_WRITE_UNAVAILABLE", str(exc), True)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    except httpx.HTTPStatusError as exc:
+        logger.exception("GitHub documentation save failed for repository %s", repo_id)
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=error_detail("GITHUB_WRITE_FAILED", "GitHub rejected the documentation save. Verify the branch, permissions, and current file state.", True)) from exc
 
 
 @router.get("/{repo_id}/pr-analysis/latest")

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { BookOpen, Download, FileText } from "lucide-react";
-import { api, DocumentationInventory, DocumentationPreview, getErrorMessage } from "@/lib/api";
+import { api, DocumentationInventory, DocumentationPreview, DocumentationSaveResult, getErrorMessage } from "@/lib/api";
 
 export default function DocumentationPanel({ repoId }: { repoId: string }) {
   const [inventory, setInventory] = useState<DocumentationInventory | null>(null);
@@ -12,6 +12,11 @@ export default function DocumentationPanel({ repoId }: { repoId: string }) {
   const [audience, setAudience] = useState("developers");
   const [preview, setPreview] = useState<DocumentationPreview | null>(null);
   const [generating, setGenerating] = useState(false);
+  const [targetPath, setTargetPath] = useState("docs/generated.md");
+  const [branch, setBranch] = useState("main");
+  const [commitMessage, setCommitMessage] = useState("Update generated documentation");
+  const [savePreview, setSavePreview] = useState<DocumentationSaveResult | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.getDocumentation(repoId).then((data) => {
@@ -35,6 +40,18 @@ export default function DocumentationPanel({ repoId }: { repoId: string }) {
     URL.revokeObjectURL(url);
   };
 
+  const requestSavePreview = async (confirm: boolean) => {
+    if (!preview) return;
+    setSaving(true);
+    setError(null);
+    try {
+      setSavePreview(await api.saveDocumentation(repoId, {
+        file_path: targetPath.trim(), content: preview.preview, branch: branch.trim() || "main",
+        commit_message: commitMessage.trim() || "Update generated documentation", confirm,
+      }));
+    } catch (reason) { setError(getErrorMessage(reason)); } finally { setSaving(false); }
+  };
+
   return (
     <section className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-5">
       <div className="flex items-center gap-2 mb-1">
@@ -44,7 +61,7 @@ export default function DocumentationPanel({ repoId }: { repoId: string }) {
       <p className="text-xs text-slate-500 mb-4">README and documentation files discovered in the repository.</p>
       <div className="mb-4 border border-amber-100 bg-amber-50/40 rounded-lg p-3"><p className="text-xs font-semibold text-amber-900">Generate documentation preview</p><p className="text-[11px] text-amber-800 mt-1">Uses one source file, shows citations, and never saves automatically.</p><div className="flex flex-col sm:flex-row gap-2 mt-2"><input aria-label="Source file path" value={sourcePath} onChange={(event) => setSourcePath(event.target.value)} placeholder="backend/app/services/example.py" className="flex-1 px-2 py-1.5 border border-slate-300 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" /><input aria-label="Documentation audience" value={audience} onChange={(event) => setAudience(event.target.value)} placeholder="Audience" className="w-32 px-2 py-1.5 border border-slate-300 rounded text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500" /><button aria-label="Generate documentation preview" disabled={generating || !sourcePath.trim()} onClick={async () => { setGenerating(true); setError(null); try { setPreview(await api.generateDocumentationPreview(repoId, sourcePath.trim(), audience.trim() || "developers")); } catch (reason) { setError(getErrorMessage(reason)); } finally { setGenerating(false); } }} className="px-3 py-1.5 rounded bg-amber-600 text-white text-xs disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-700">{generating ? "Generating…" : "Preview"}</button></div></div>
       {error && <p role="alert" className="text-xs text-red-600 mb-3">{error}</p>}
-      {preview && <div role="status" className="mb-4 border border-sky-100 bg-sky-50/40 rounded-lg p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold text-slate-700">Preview for {preview.file_path}</p><p className="text-[11px] text-slate-500 mt-1">Citation: {preview.citation.file_path} · lines {preview.citation.start_line}–{preview.citation.end_line} · {preview.model}</p></div><button type="button" aria-label="Download documentation preview" onClick={downloadPreview} className="inline-flex items-center gap-1 px-2 py-1 rounded border border-sky-200 text-sky-700 text-[11px] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"><Download className="w-3 h-3" />Download</button></div><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-slate-700">{preview.preview}</pre></div>}
+      {preview && <div role="status" className="mb-4 border border-sky-100 bg-sky-50/40 rounded-lg p-3"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold text-slate-700">Preview for {preview.file_path}</p><p className="text-[11px] text-slate-500 mt-1">Citation: {preview.citation.file_path} · lines {preview.citation.start_line}–{preview.citation.end_line} · {preview.model}</p></div><button type="button" aria-label="Download documentation preview" onClick={downloadPreview} className="inline-flex items-center gap-1 px-2 py-1 rounded border border-sky-200 text-sky-700 text-[11px] hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500"><Download className="w-3 h-3" />Download</button></div><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs text-slate-700">{preview.preview}</pre><div className="mt-3 border-t border-sky-100 pt-3"><p className="text-[11px] font-semibold text-slate-700">Save to GitHub (review required)</p><div className="grid sm:grid-cols-3 gap-2 mt-2"><input aria-label="Documentation target path" value={targetPath} onChange={(event) => setTargetPath(event.target.value)} className="px-2 py-1.5 border border-slate-300 rounded text-xs" /><input aria-label="GitHub branch" value={branch} onChange={(event) => setBranch(event.target.value)} className="px-2 py-1.5 border border-slate-300 rounded text-xs" /><input aria-label="Documentation commit message" value={commitMessage} onChange={(event) => setCommitMessage(event.target.value)} className="px-2 py-1.5 border border-slate-300 rounded text-xs" /></div><button type="button" onClick={() => requestSavePreview(false)} disabled={saving || !targetPath.trim()} className="mt-2 px-3 py-1.5 rounded border border-amber-300 text-amber-800 text-xs disabled:opacity-50">{saving ? "Checking..." : "Review GitHub diff"}</button>{savePreview && <div className="mt-2"><p className="text-[11px] text-slate-600">{savePreview.changed ? "Changes ready for review:" : "No changes detected."}</p><pre className="mt-1 max-h-40 overflow-auto whitespace-pre-wrap bg-slate-900 text-slate-100 rounded p-2 text-[10px]">{savePreview.diff || "No diff"}</pre>{savePreview.changed && !savePreview.saved && <button type="button" onClick={() => requestSavePreview(true)} disabled={saving} className="mt-2 px-3 py-1.5 rounded bg-emerald-600 text-white text-xs disabled:opacity-50">{saving ? "Committing..." : "Confirm and commit to GitHub"}</button>}{savePreview.saved && <p className="mt-2 text-[11px] text-emerald-700">Committed successfully{savePreview.commit_sha ? ` (${savePreview.commit_sha.slice(0, 7)})` : ""}.</p>}</div>}</div></div>}
       <div className="grid lg:grid-cols-[minmax(0,0.8fr)_minmax(0,1.4fr)] gap-3">
         <div className="border border-slate-200 rounded-lg overflow-hidden max-h-56 overflow-y-auto">
           {inventory.documents.map((document) => (

@@ -87,6 +87,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Surfaced answer citation coverage in the repository quality dashboard
 - Added accessible labels, live regions, alert semantics, and selection states across core repository and chat controls
 - Added explicit user-triggered Markdown export for generated documentation previews without automatic repository writes
+- Added guarded GitHub documentation saves: diff preview first, explicit confirmation required, documentation-only paths, bounded content, and optimistic SHA protection against stale overwrites
 - Added global visible keyboard focus styling and reduced-motion support
 - Added form associations, validation announcements, and error visibility for repository and intelligence panels
 - Completed a static accessibility pass over interactive controls; fixed the remaining issue-panel error-state and feedback-control semantics
@@ -122,11 +123,11 @@ Phase 3 is not finished yet. The remaining work is listed below.
    - Added open, closed, and all issue states in the API and UI.
    - Added mocked GitHub response tests and invalid-state validation.
 
-3. **Controlled documentation generation** — preview milestone complete
+3. **Controlled documentation generation** — save flow complete
    - Generate a draft only on explicit user action for one selected source file.
    - Return citation metadata and show the draft in the UI before any save action.
    - Enforce a 50 KB source limit and a 1,200-token output limit; no automatic file writes are performed.
-   - Added explicit user-approved Markdown export/download; future work: add a repository save flow with a diff and confirmation.
+   - Added explicit user-approved Markdown export/download and a repository save flow with a unified diff, explicit confirmation, bounded documentation paths, and current-blob SHA protection.
 
 4. **RAG evaluation expansion**
    - Expanded the starter benchmark to 10 representative questions and added validation tests for benchmark files.

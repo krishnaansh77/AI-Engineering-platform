@@ -4,6 +4,8 @@ import hmac
 import os
 import tempfile
 import unittest
+import asyncio
+import base64
 from unittest.mock import AsyncMock, patch
 from app.services.github_service import GitHubService
 
@@ -103,8 +105,6 @@ class TestGitHubService(unittest.TestCase):
         self.assertEqual(FakeClient.get.await_args.kwargs["params"]["state"], "all")
 
     def test_list_issues_retries_transient_server_error(self):
-        import asyncio
-
         retry_response = unittest.mock.Mock(status_code=503)
         retry_response.raise_for_status = unittest.mock.Mock(side_effect=Exception("temporary"))
         success_response = unittest.mock.Mock(status_code=200)
@@ -125,6 +125,64 @@ class TestGitHubService(unittest.TestCase):
 
         self.assertEqual(issues, [])
         self.assertEqual(FakeClient.get.await_count, 2)
+
+    def test_documentation_save_returns_diff_without_mutating(self):
+        existing = "# Old docs\n"
+        response = unittest.mock.Mock(status_code=200)
+        response.json.return_value = {
+            "sha": "old-sha",
+            "content": base64.b64encode(existing.encode()).decode(),
+        }
+        response.raise_for_status = unittest.mock.Mock()
+
+        class FakeClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_):
+                return None
+
+            get = AsyncMock(return_value=response)
+            put = AsyncMock()
+
+        with patch("app.services.github_service.httpx.AsyncClient", return_value=FakeClient()):
+            result = asyncio.run(self.service.save_documentation_file(
+                "https://github.com/acme/demo", "pat", "docs/README.md", "# New docs\n", "main", "Update docs"
+            ))
+
+        self.assertFalse(result["saved"])
+        self.assertTrue(result["changed"])
+        self.assertIn("-# Old docs", result["diff"])
+        self.assertIn("+# New docs", result["diff"])
+        FakeClient.put.assert_not_awaited()
+
+    def test_documentation_save_commits_only_after_confirmation(self):
+        response = unittest.mock.Mock(status_code=404)
+        response.raise_for_status = unittest.mock.Mock()
+        saved_response = unittest.mock.Mock(status_code=201)
+        saved_response.raise_for_status = unittest.mock.Mock()
+        saved_response.json.return_value = {"commit": {"sha": "new-sha", "html_url": "https://github.com/acme/demo/commit/new-sha"}}
+
+        class FakeClient:
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *_):
+                return None
+
+            get = AsyncMock(return_value=response)
+            put = AsyncMock(return_value=saved_response)
+
+        with patch("app.services.github_service.httpx.AsyncClient", return_value=FakeClient()):
+            result = asyncio.run(self.service.save_documentation_file(
+                "https://github.com/acme/demo", "pat", "docs/README.md", "# New docs\n", "main", "Add docs", True
+            ))
+
+        self.assertTrue(result["saved"])
+        self.assertEqual(result["commit_sha"], "new-sha")
+        body = FakeClient.put.await_args.kwargs["json"]
+        self.assertEqual(body["branch"], "main")
+        self.assertEqual(body["content"], base64.b64encode(b"# New docs\n").decode())
 
 
 if __name__ == "__main__":

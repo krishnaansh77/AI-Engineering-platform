@@ -3,6 +3,9 @@ import hashlib
 import hmac
 import logging
 import os
+import base64
+import difflib
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -396,6 +399,97 @@ class GitHubService:
             for issue in issues
             if "pull_request" not in issue
         ]
+
+    async def save_documentation_file(
+        self,
+        github_url: str,
+        pat: str,
+        file_path: str,
+        content: str,
+        branch: str,
+        commit_message: str,
+        confirm: bool = False,
+    ) -> Dict:
+        """Preview or explicitly commit a bounded documentation file to GitHub.
+
+        A preview never mutates GitHub. A commit requires ``confirm=True`` and
+        includes the current blob SHA so an existing file cannot be silently
+        overwritten after it changed remotely.
+        """
+        if not pat.strip():
+            raise PermissionError("GITHUB_PAT is required to save documentation to GitHub.")
+        normalized_path = file_path.strip().strip("/")
+        if not normalized_path or any(part in {"", ".", ".."} for part in normalized_path.split("/")):
+            raise ValueError("Documentation path must be a repository-relative file path.")
+        if not normalized_path.lower().endswith((".md", ".mdx", ".rst")):
+            raise ValueError("Documentation saves are limited to .md, .mdx, and .rst files.")
+        if len(normalized_path) > 500 or len(content.encode("utf-8")) > 50_000:
+            raise ValueError("Documentation path or content exceeds the safe limit.")
+        if not re.fullmatch(r"[A-Za-z0-9._/-]+", branch) or len(branch) > 200:
+            raise ValueError("Branch must be a valid GitHub branch name.")
+        if not commit_message.strip() or len(commit_message) > 200:
+            raise ValueError("Commit message must be between 1 and 200 characters.")
+
+        parts = [part for part in github_url.rstrip("/").split("/") if part]
+        if len(parts) < 2:
+            raise ValueError("Invalid GitHub repository URL")
+        owner, repo = parts[-2], parts[-1]
+        api_url = f"https://api.github.com/repos/{owner}/{repo}/contents/{normalized_path}"
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {pat.strip()}",
+        }
+        async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
+            response = await client.get(api_url, params={"ref": branch})
+            existing_content = ""
+            current_sha = None
+            if response.status_code == 200:
+                payload = response.json()
+                current_sha = payload.get("sha")
+                try:
+                    existing_content = base64.b64decode(payload.get("content", "")).decode("utf-8")
+                except (ValueError, UnicodeDecodeError) as exc:
+                    raise ValueError("The existing documentation file is not valid UTF-8 text.") from exc
+            elif response.status_code != 404:
+                response.raise_for_status()
+
+            diff = "".join(difflib.unified_diff(
+                existing_content.splitlines(keepends=True),
+                content.splitlines(keepends=True),
+                fromfile=f"a/{normalized_path}",
+                tofile=f"b/{normalized_path}",
+            ))
+            result = {
+                "file_path": normalized_path,
+                "branch": branch,
+                "commit_message": commit_message.strip(),
+                "existing": existing_content,
+                "diff": diff,
+                "current_sha": current_sha,
+                "changed": existing_content != content,
+                "saved": False,
+            }
+            if not confirm:
+                return result
+            if not result["changed"]:
+                raise ValueError("The generated documentation is identical to the current file.")
+
+            body = {
+                "message": commit_message.strip(),
+                "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+                "branch": branch,
+            }
+            if current_sha:
+                body["sha"] = current_sha
+            saved_response = await client.put(api_url, json=body)
+            saved_response.raise_for_status()
+            saved_payload = saved_response.json()
+            result.update({
+                "saved": True,
+                "commit_sha": saved_payload.get("commit", {}).get("sha"),
+                "commit_url": saved_payload.get("commit", {}).get("html_url"),
+            })
+            return result
 
     def verify_webhook_signature(
         self, payload: bytes, signature_header: str, secret: str
