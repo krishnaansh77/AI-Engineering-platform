@@ -48,6 +48,15 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials | None = De
     return user
 
 
+def require_roles(*allowed_roles: str):
+    """Build a dependency that permits only the supplied RBAC roles."""
+    async def dependency(user: User = Depends(get_current_user)) -> User:
+        if user.role not in allowed_roles:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Your account does not have permission for this action.")
+        return user
+    return dependency
+
+
 @router.get("/me", response_model=UserResponse)
 async def me(user: User = Depends(get_current_user)) -> UserResponse:
     return UserResponse.model_validate(user)

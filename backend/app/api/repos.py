@@ -37,6 +37,7 @@ from app.services.github_service import GitHubService
 from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
 from app.services.secret_scan_service import SecretScanService
+from app.api.auth import require_roles
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
@@ -434,6 +435,7 @@ async def save_documentation(
     repo_id: uuid.UUID,
     payload: DocumentationSaveRequest,
     db: AsyncSession = Depends(get_db),
+    _user=Depends(require_roles("owner", "admin", "member")),
 ) -> dict:
     """Return a diff first, or commit only after explicit confirmation."""
     result = await db.execute(select(Repository).where(Repository.id == repo_id))
