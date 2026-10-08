@@ -37,7 +37,19 @@ def _upgrade_database() -> None:
     backend_root = Path(__file__).resolve().parents[1]
     alembic_config = AlembicConfig(str(backend_root / "alembic.ini"))
     alembic_config.set_main_option("script_location", str(backend_root / "alembic"))
-    command.upgrade(alembic_config, "head")
+    try:
+        command.upgrade(alembic_config, "head")
+    except Exception as exc:
+        # Older Railway deployments were initialized with SQLAlchemy's
+        # create_all and therefore have tables but no alembic_version row.
+        # Treat that known shape as the 006 baseline, then apply new
+        # migrations. Other migration failures must still fail visibly.
+        message = str(exc)
+        if "DuplicateTableError" not in message or 'relation "repositories" already exists' not in message:
+            raise
+        logger.warning("Existing unmanaged schema detected; stamping migration baseline 006 before upgrading.")
+        command.stamp(alembic_config, "006_workspace_invitations")
+        command.upgrade(alembic_config, "head")
 
 
 class SafetyMiddleware:
