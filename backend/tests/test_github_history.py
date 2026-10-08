@@ -48,6 +48,29 @@ class TestGitHubHistory(unittest.TestCase):
             self.assertEqual(analysis["source_files"], ["service.py"])
             self.assertTrue(analysis["recommendations"])
 
+    def test_compares_base_and_head_commits(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = git.Repo.init(directory)
+            path = Path(directory) / "service.py"
+            path.write_text("print('one')\n")
+            repo.index.add([str(path)])
+            base = repo.index.commit("Add service")
+            path.write_text("print('two')\n")
+            test_path = Path(directory) / "test_service.py"
+            test_path.write_text("def test_service(): pass\n")
+            repo.index.add([str(path), str(test_path)])
+            head = repo.index.commit("Update service")
+
+            analysis = GitHubService().compare_commits(directory, base.hexsha, head.hexsha)
+
+            self.assertEqual(analysis["base_sha"], base.hexsha)
+            self.assertEqual(analysis["head_sha"], head.hexsha)
+            self.assertEqual(analysis["changed_files"], ["service.py", "test_service.py"])
+            self.assertEqual(analysis["source_files"], ["service.py"])
+            self.assertEqual(analysis["test_files"], ["test_service.py"])
+            self.assertEqual(analysis["insertions"], 2)
+            self.assertEqual(analysis["deletions"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

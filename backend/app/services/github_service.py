@@ -311,6 +311,49 @@ class GitHubService:
             "recommendations": recommendations,
         }
 
+    def compare_commits(self, clone_path: str, base_ref: str, head_ref: str) -> Dict:
+        """Compare two locally available commits and return PR review signals."""
+        repo = git.Repo(clone_path)
+        if base_ref.startswith("-") or head_ref.startswith("-"):
+            raise ValueError("Commit references cannot start with '-'")
+        base = repo.commit(base_ref)
+        head = repo.commit(head_ref)
+        changed_files = [path for path in repo.git.diff("--name-only", f"{base.hexsha}...{head.hexsha}").splitlines() if path]
+        numstat = repo.git.diff("--numstat", f"{base.hexsha}...{head.hexsha}").splitlines()
+        insertions = 0
+        deletions = 0
+        for line in numstat:
+            parts = line.split("\t", 2)
+            if len(parts) >= 2:
+                insertions += int(parts[0]) if parts[0].isdigit() else 0
+                deletions += int(parts[1]) if parts[1].isdigit() else 0
+
+        test_files = [path for path in changed_files if "test" in Path(path).name.lower() or "tests" in Path(path).parts]
+        documentation_files = [path for path in changed_files if Path(path).suffix.lower() in {".md", ".mdx", ".rst"}]
+        source_files = [path for path in changed_files if path not in test_files and path not in documentation_files]
+        recommendations = []
+        if source_files and not test_files:
+            recommendations.append("Review or add tests for the changed source files.")
+        if source_files and not documentation_files:
+            recommendations.append("Check whether developer documentation needs an update.")
+        if not recommendations:
+            recommendations.append("No obvious test or documentation gaps detected from file names.")
+        return {
+            "base_sha": base.hexsha,
+            "base_short_sha": base.hexsha[:7],
+            "head_sha": head.hexsha,
+            "head_short_sha": head.hexsha[:7],
+            "message": (head.message or "").splitlines()[0][:240],
+            "author": head.author.name or "Unknown",
+            "changed_files": sorted(changed_files),
+            "source_files": source_files,
+            "test_files": test_files,
+            "documentation_files": documentation_files,
+            "insertions": insertions,
+            "deletions": deletions,
+            "recommendations": recommendations,
+        }
+
     async def list_issues(self, github_url: str, pat: str = "", limit: int = 20) -> List[Dict]:
         """Fetch open GitHub issues, excluding pull requests."""
         parts = [part for part in github_url.rstrip("/").split("/") if part]

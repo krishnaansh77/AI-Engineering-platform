@@ -184,6 +184,23 @@ export interface LatestChangeAnalysis {
   recommendations: string[];
 }
 
+export interface PRComparisonAnalysis {
+  base_sha: string;
+  base_short_sha: string;
+  head_sha: string;
+  head_short_sha: string;
+  message: string;
+  author: string;
+  changed_files: string[];
+  source_files: string[];
+  test_files: string[];
+  documentation_files: string[];
+  impacted_files: string[];
+  insertions: number;
+  deletions: number;
+  recommendations: string[];
+}
+
 export interface DebtSignal {
   file_path: string;
   signal: string;
@@ -378,6 +395,11 @@ export const api = {
 
   getCommitAnalysis: async (repoId: string, sha: string): Promise<LatestChangeAnalysis> => {
     const { data } = await client.get<LatestChangeAnalysis>(`/repos/${repoId}/pr-analysis/commit/${sha}`);
+    return data;
+  },
+
+  comparePR: async (repoId: string, base: string, head: string): Promise<PRComparisonAnalysis> => {
+    const { data } = await client.post<PRComparisonAnalysis>(`/repos/${repoId}/pr-analysis/compare`, { base, head });
     return data;
   },
 

@@ -51,6 +51,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 
 - Latest-change / PR-style analysis for local commits
 - Review any indexed commit from the Git history panel
+- Base/head PR comparison by branch or commit SHA, including changed files, insertions/deletions, tests, documentation, and downstream dependency impact
 - GitHub issue listing and issue-to-code relevance analysis
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
@@ -73,10 +74,10 @@ Phase 3 is not finished yet. The remaining work is listed below.
 
 ### Phase 3A — Finish developer productivity
 
-1. **Real PR comparison**
-   - Accept base/head branches or commit SHAs.
+1. **Real PR comparison** — complete
+   - Accept base/head branches or commit SHAs through the API and repository UI.
    - Produce changed-file summary, dependency impact, related tests, and documentation warnings.
-   - Add a proper PR analysis response model and regression tests.
+   - Covered by regression tests for commit comparison and diff statistics.
 
 2. **Issue intelligence hardening**
    - Add GitHub API retry/backoff and clearer rate-limit messages.
@@ -138,6 +139,7 @@ Expected baseline at the time this plan was written:
 
 - Backend tests: `24 passed`
 - After the evaluation milestone: `25 passed`
+- After the PR comparison milestone: `26 passed`
 - Frontend build: successful
 - Redis: `PONG`
 - Backend health: `database=healthy`

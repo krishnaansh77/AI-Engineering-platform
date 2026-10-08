@@ -103,6 +103,12 @@ class EvaluationRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=20)
 
 
+class PRComparisonRequest(BaseModel):
+    """Base and head refs for local PR-style comparison."""
+    base: str = Field(..., min_length=1, max_length=200)
+    head: str = Field(..., min_length=1, max_length=200)
+
+
 class FeedbackRequest(BaseModel):
     """User rating for a generated repository answer."""
     question: str = Field(..., min_length=1, max_length=10000)

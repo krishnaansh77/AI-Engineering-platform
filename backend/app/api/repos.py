@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.schemas import (
     ConnectRepoRequest,
+    PRComparisonRequest,
     RepoStatsResponse,
     RepositoryResponse,
     SourceFileResponse,
@@ -384,6 +385,32 @@ async def analyze_repository_commit(
     except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError, git.exc.BadName, ValueError) as exc:
         logger.warning("Commit %s unavailable for repository %s: %s", commit_sha, repo_id, exc)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Commit is unavailable in the local clone.") from exc
+
+
+@router.post("/{repo_id}/pr-analysis/compare")
+async def compare_repository_changes(
+    repo_id: uuid.UUID,
+    payload: PRComparisonRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Compare two local commits and add dependency-impact signals."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready" or not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must be ready before PR comparison is available.")
+    try:
+        analysis = GitHubService().compare_commits(repository.clone_path, payload.base, payload.head)
+        graph = await DependencyGraphService().build_file_graph(repo_id, db)
+        changed_paths = set(analysis["source_files"]) & {node["id"] for node in graph["nodes"]}
+        analysis["impacted_files"] = sorted(DependencyGraphService.expand_dependents(changed_paths, graph["edges"]))
+        if analysis["impacted_files"]:
+            analysis["recommendations"].append(f"Review {len(analysis['impacted_files'])} downstream files connected by imports.")
+        return analysis
+    except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError, git.exc.BadName, git.exc.GitCommandError, ValueError) as exc:
+        logger.warning("PR comparison unavailable for repository %s: %s", repo_id, exc)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Base or head commit is unavailable in the local clone.") from exc
 
 
 @router.get("/{repo_id}/technical-debt")
