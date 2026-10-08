@@ -65,6 +65,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Backend status metadata now reflects Phase 3 and `/health` checks both PostgreSQL and Redis readiness
 - Production deployment runbook added at `docs/deployment.md`; no external deployment has been performed yet
 - Backend and frontend Docker build contexts now exclude local secrets, Git metadata, caches, and generated dependencies
+- Railway-specific service mapping and deployment checklist added at `docs/railway-deployment.md`
 - Accessibility polish across Phase 3 panels: labels for controls, visible keyboard focus states, and live alert/status regions
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases

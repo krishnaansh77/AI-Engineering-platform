@@ -2,6 +2,8 @@
 
 This document describes the production deployment requirements for the AI Software Engineering Intelligence Platform. It does not deploy anything by itself.
 
+For the selected hosting target, see the [Railway deployment checklist](railway-deployment.md).
+
 ## Required services
 
 - FastAPI backend
