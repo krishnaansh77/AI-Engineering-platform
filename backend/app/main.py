@@ -108,7 +108,7 @@ async def root() -> dict:
     """Root info endpoint."""
     return {
         "platform": "AI Software Engineering Intelligence Platform",
-        "phase": "Phase 2 - Repository Intelligence",
+        "phase": "Phase 3 - Developer Productivity & Safety",
         "status": "online",
         "docs_url": "/docs",
         "llm_provider": settings.LLM_PROVIDER,
@@ -118,7 +118,7 @@ async def root() -> dict:
 
 @app.get("/health", tags=["status"])
 async def health_check() -> dict:
-    """Comprehensive health check endpoint for monitoring."""
+    """Comprehensive database and Redis health check endpoint for monitoring."""
     db_status = "healthy"
     try:
         async with engine.connect() as conn:
@@ -126,8 +126,18 @@ async def health_check() -> dict:
     except Exception as e:
         db_status = f"unhealthy: {e}"
 
+    redis_status = "healthy"
+    redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+    try:
+        await redis_client.ping()
+    except Exception as e:
+        redis_status = f"unhealthy: {e}"
+    finally:
+        await redis_client.aclose()
+
     return {
-        "status": "healthy" if db_status == "healthy" else "degraded",
+        "status": "healthy" if db_status == "healthy" and redis_status == "healthy" else "degraded",
         "database": db_status,
+        "redis": redis_status,
         "app_env": settings.APP_ENV,
     }
