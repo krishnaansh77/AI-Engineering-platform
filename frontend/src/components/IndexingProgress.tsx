@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { Loader2, CheckCircle2 } from "lucide-react";
 import { api, Repository } from "@/lib/api";
 
@@ -23,6 +23,7 @@ export default function IndexingProgress({
   repoId,
   onComplete,
 }: IndexingProgressProps) {
+  const [stepIndex, setStepIndex] = useState(0);
   const poll = useCallback(async () => {
     try {
       const repo = await api.getRepo(repoId);
@@ -40,11 +41,16 @@ export default function IndexingProgress({
     return () => clearInterval(interval);
   }, [poll]);
 
-  // Cycle through step messages for UI feedback
-  const stepIndex = Math.floor((Date.now() / 3000) % STEPS.length);
+  // Cycle through step messages for UI feedback.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setStepIndex((current) => (current + 1) % STEPS.length);
+    }, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="mt-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-4">
+    <div role="status" aria-live="polite" aria-label={`Indexing in progress: ${STEPS[stepIndex]}`} className="mt-4 bg-amber-50 border border-amber-200 rounded-lg px-4 py-4">
       <div className="flex items-center gap-3 mb-3">
         <div className="relative flex-shrink-0">
           <div className="w-5 h-5 rounded-full bg-amber-400" />
@@ -65,6 +71,7 @@ export default function IndexingProgress({
               <div className="w-3.5 h-3.5 rounded-full border border-slate-300 flex-shrink-0" />
             )}
             <span
+              aria-current={i === stepIndex ? "step" : undefined}
               className={`text-xs ${
                 i < stepIndex
                   ? "text-slate-400 line-through"

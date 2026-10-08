@@ -89,6 +89,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Added global visible keyboard focus styling and reduced-motion support
 - Added form associations, validation announcements, and error visibility for repository and intelligence panels
 - Completed a static accessibility pass over interactive controls; fixed the remaining issue-panel error-state and feedback-control semantics
+- Fixed indexing progress step updates and exposed the active step through an accessible live status
 - Added helpful versus unhelpful citation coverage breakdowns for feedback-driven quality analysis
 - Added real PostgreSQL/pgvector endpoint smoke tests for retrieval evaluation and feedback citation aggregation, executed in the seeded CI job
 
