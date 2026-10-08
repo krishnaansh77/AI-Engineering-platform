@@ -83,6 +83,15 @@ export interface ArchitectureSummary {
   cross_layer_links: ArchitectureLink[];
 }
 
+export interface TestIntelligence {
+  test_file_count: number;
+  source_file_count: number;
+  tested_file_count: number;
+  untested_file_count: number;
+  tested_files: string[];
+  untested_files: string[];
+}
+
 export interface DependencyGraphNode {
   id: string;
   file_path: string;
@@ -168,6 +177,11 @@ export const api = {
 
   getArchitecture: async (id: string): Promise<ArchitectureSummary> => {
     const { data } = await client.get<ArchitectureSummary>(`/repos/${id}/architecture`);
+    return data;
+  },
+
+  getTestIntelligence: async (id: string): Promise<TestIntelligence> => {
+    const { data } = await client.get<TestIntelligence>(`/repos/${id}/test-intelligence`);
     return data;
   },
 

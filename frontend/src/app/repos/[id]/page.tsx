@@ -20,6 +20,7 @@ import IndexingProgress from "@/components/IndexingProgress";
 import DependencyGraphPanel from "@/components/DependencyGraphPanel";
 import GitHistoryPanel from "@/components/GitHistoryPanel";
 import ArchitecturePanel from "@/components/ArchitecturePanel";
+import TestIntelligencePanel from "@/components/TestIntelligencePanel";
 import { formatRelativeTime, getLanguageIcon } from "@/lib/utils";
 
 export default function RepoDetailPage() {
@@ -229,6 +230,8 @@ export default function RepoDetailPage() {
       {repo.status === "ready" && <DependencyGraphPanel repoId={id} />}
 
       {repo.status === "ready" && <ArchitecturePanel repoId={id} />}
+
+      {repo.status === "ready" && <TestIntelligencePanel repoId={id} />}
 
       {repo.status === "ready" && <GitHistoryPanel repoId={id} />}
 

@@ -101,6 +101,43 @@ class DependencyGraphService:
         ]
         return {"layers": layers, "cross_layer_links": links}
 
+    async def build_test_summary(self, repo_id: uuid.UUID, db: AsyncSession) -> dict:
+        """Build a conservative test-to-source relationship summary.
+
+        This is a relationship heuristic, not a replacement for runtime coverage.
+        """
+        graph = await self.build_file_graph(repo_id, db)
+        paths = [node["file_path"] for node in graph["nodes"]]
+        test_files = {path for path in paths if self.classify_layer(path) == "tests"}
+        source_files = set(paths) - test_files
+        tested_files: Set[str] = set()
+
+        for edge in graph["edges"]:
+            if edge["source"] in test_files and edge["target"] in source_files:
+                tested_files.add(edge["target"])
+
+        # Match conventional names such as test_graph_service.py to
+        # graph_service.py when an explicit import was not resolved.
+        source_by_stem = {
+            PurePosixPath(path).stem.lower(): path for path in source_files
+        }
+        for test_path in test_files:
+            stem = PurePosixPath(test_path).stem.lower()
+            candidates = [stem.removeprefix("test_"), stem.removesuffix("_test")]
+            for candidate in candidates:
+                if candidate in source_by_stem:
+                    tested_files.add(source_by_stem[candidate])
+
+        untested_files = sorted(source_files - tested_files)
+        return {
+            "test_file_count": len(test_files),
+            "source_file_count": len(source_files),
+            "tested_file_count": len(tested_files),
+            "untested_file_count": len(untested_files),
+            "tested_files": sorted(tested_files),
+            "untested_files": untested_files,
+        }
+
     @staticmethod
     def classify_layer(file_path: str) -> str:
         """Infer a useful architecture layer from a repository-relative path."""
