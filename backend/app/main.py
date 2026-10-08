@@ -149,4 +149,12 @@ async def health_check() -> dict:
         "database": db_status,
         "redis": redis_status,
         "app_env": settings.APP_ENV,
+        "providers": {
+            "llm": settings.LLM_PROVIDER,
+            "llm_configured": bool(settings.OPENAI_API_KEY or settings.GOOGLE_API_KEY or settings.ANTHROPIC_API_KEY or settings.LLM_PROVIDER.lower() in {"mock", "local"}),
+            "embedding": settings.EMBEDDING_PROVIDER,
+            "embedding_configured": bool(settings.OPENAI_API_KEY or settings.GOOGLE_API_KEY or settings.EMBEDDING_PROVIDER.lower() in {"mock", "local"}),
+            "github_app_configured": bool(settings.GITHUB_APP_ID and settings.GITHUB_APP_INSTALLATION_ID and settings.GITHUB_APP_PRIVATE_KEY),
+            "daily_llm_request_limit": settings.LLM_DAILY_REQUEST_LIMIT,
+        },
     }
