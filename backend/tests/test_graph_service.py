@@ -24,6 +24,14 @@ class TestDependencyGraphService(unittest.TestCase):
         self.assertEqual(DependencyGraphService.classify_layer("backend/app/api/repos.py"), "backend")
         self.assertEqual(DependencyGraphService.classify_layer("backend/tests/test_graph.py"), "tests")
 
+    def test_expands_dependents_from_changed_targets(self):
+        edges = [
+            {"source": "api.py", "target": "service.py"},
+            {"source": "route.py", "target": "api.py"},
+        ]
+        impacted = DependencyGraphService.expand_dependents({"service.py"}, edges)
+        self.assertEqual(impacted, {"api.py", "route.py"})
+
 
 if __name__ == "__main__":
     unittest.main()

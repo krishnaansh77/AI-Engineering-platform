@@ -157,6 +157,25 @@ class DependencyGraphService:
         return "other"
 
     @staticmethod
+    def expand_dependents(
+        changed_paths: Set[str], edges: List[dict], max_depth: int = 3
+    ) -> Set[str]:
+        """Find files that may be affected by changed targets through imports."""
+        impacted: Set[str] = set()
+        frontier = set(changed_paths)
+        for _ in range(max_depth):
+            next_frontier: Set[str] = set()
+            for edge in edges:
+                if edge["target"] in frontier and edge["source"] not in changed_paths:
+                    next_frontier.add(edge["source"])
+            next_frontier -= impacted
+            impacted.update(next_frontier)
+            frontier = next_frontier
+            if not frontier:
+                break
+        return impacted
+
+    @staticmethod
     def resolve_import(
         source_path: str, import_text: str, known_paths: Set[str]
     ) -> str | None:

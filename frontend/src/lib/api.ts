@@ -62,6 +62,7 @@ export interface GitCommit {
   files_changed: number;
   insertions: number;
   deletions: number;
+  impact_count?: number;
 }
 
 export interface GitHistory {

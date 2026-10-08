@@ -44,6 +44,7 @@ export default function GitHistoryPanel({ repoId }: { repoId: string }) {
                   <p className="text-xs text-slate-400 mt-1">{commit.author} · {new Date(commit.committed_at).toLocaleString()} · <span className="font-mono">{commit.short_sha}</span></p>
                   <div className="flex items-center gap-3 text-[11px] mt-2">
                     <span className="text-slate-500">{commit.files_changed} files</span>
+                    {commit.impact_count !== undefined && <span className="text-violet-600">{commit.impact_count} downstream impact</span>}
                     <span className="flex items-center gap-0.5 text-emerald-600"><Plus className="w-3 h-3" />{commit.insertions}</span>
                     <span className="flex items-center gap-0.5 text-red-500"><Minus className="w-3 h-3" />{commit.deletions}</span>
                   </div>

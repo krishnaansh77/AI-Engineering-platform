@@ -245,6 +245,11 @@ async def get_repository_history(
     except (git.exc.NoSuchPathError, git.exc.InvalidGitRepositoryError) as exc:
         logger.warning("History unavailable for repository %s: %s", repo_id, exc)
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository history is unavailable.")
+    graph = await DependencyGraphService().build_file_graph(repo_id, db)
+    for commit in commits:
+        changed_paths = set(commit["files"]) & {node["id"] for node in graph["nodes"]}
+        impacted = DependencyGraphService.expand_dependents(changed_paths, graph["edges"])
+        commit["impact_count"] = len(impacted)
     return {"commits": commits, "count": len(commits)}
 
 
