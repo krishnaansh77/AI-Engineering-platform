@@ -396,8 +396,8 @@ export const api = {
     return data;
   },
 
-  evaluateRepo: async (repoId: string, question: string, expectedFiles: string[], topK = 5): Promise<EvaluationRun> => {
-    const { data } = await client.post<EvaluationRun>(`/repos/${repoId}/evaluate`, { cases: [{ question, expected_files: expectedFiles }], top_k: topK });
+  evaluateRepo: async (repoId: string, cases: Array<{ question: string; expected_files: string[] }>, topK = 5): Promise<EvaluationRun> => {
+    const { data } = await client.post<EvaluationRun>(`/repos/${repoId}/evaluate`, { cases, top_k: topK });
     return data;
   },
 };
