@@ -2,7 +2,11 @@
 const nextConfig = {
   output: "standalone",
   async rewrites() {
-    const backendUrl = (process.env.BACKEND_URL || "http://localhost:8000").replace(/\/+$/, "");
+    const configuredBackendUrl = process.env.BACKEND_URL ||
+      (process.env.NODE_ENV === "production"
+        ? "https://ai-engineering-platform-production.up.railway.app"
+        : "http://localhost:8000");
+    const backendUrl = configuredBackendUrl.replace(/\/+$/, "");
 
     return [
       {
