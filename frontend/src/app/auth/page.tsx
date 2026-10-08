@@ -11,6 +11,9 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
+  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -26,6 +29,25 @@ export default function AuthPage() {
     finally { setLoading(false); }
   };
 
+  const createInvite = async (workspace: Workspace) => {
+    setError(null); setMessage(null); setGeneratedToken(null);
+    try {
+      const invitation = await api.createWorkspaceInvitation(workspace.id, inviteEmail.trim());
+      setGeneratedToken(invitation.invite_token ?? null);
+      setMessage(`Invitation created for ${invitation.email}. Share the token once.`);
+    } catch (reason) { setError(getErrorMessage(reason)); }
+  };
+
+  const acceptInvite = async () => {
+    setError(null); setMessage(null);
+    try {
+      const workspace = await api.acceptWorkspaceInvitation(inviteToken.trim());
+      setWorkspaces((current) => current.some((item) => item.id === workspace.id) ? current : [...current, workspace]);
+      setMessage(`Joined ${workspace.name} as ${workspace.role}.`);
+      setInviteToken("");
+    } catch (reason) { setError(getErrorMessage(reason)); }
+  };
+
   return (
     <div className="max-w-xl mx-auto px-6 py-10">
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-6">
@@ -37,7 +59,9 @@ export default function AuthPage() {
           <button type="submit" disabled={loading} className="w-full px-4 py-2 rounded-lg bg-sky-600 text-white text-sm disabled:opacity-50">{loading ? "Working..." : mode === "login" ? "Sign in" : "Create account"}</button>
         </form>
         {message && <p role="status" className="mt-4 text-sm text-emerald-700">{message}</p>}
-        {workspaces.length > 0 && <div className="mt-4 border border-slate-200 rounded-lg p-3"><p className="text-xs font-semibold text-slate-700">Your workspaces</p>{workspaces.map((workspace) => <p key={workspace.id} className="text-xs text-slate-600 mt-1">{workspace.name} · {workspace.role}</p>)}</div>}
+        {workspaces.length > 0 && <div className="mt-4 border border-slate-200 rounded-lg p-3"><p className="text-xs font-semibold text-slate-700">Your workspaces</p>{workspaces.map((workspace) => <div key={workspace.id} className="mt-2"><p className="text-xs text-slate-600">{workspace.name} · {workspace.role}</p>{(workspace.role === "owner" || workspace.role === "admin") && <div className="flex gap-2 mt-1"><input aria-label={`Invite email for ${workspace.name}`} type="email" placeholder="teammate@example.com" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" /><button type="button" disabled={!inviteEmail.trim()} onClick={() => createInvite(workspace)} className="px-2 py-1 rounded bg-slate-700 text-white text-xs disabled:opacity-50">Create invite</button></div>}</div>)}</div>}
+        {generatedToken && <div role="status" className="mt-3 border border-amber-200 bg-amber-50 rounded-lg p-3"><p className="text-xs font-semibold text-amber-900">Share this invitation token</p><code className="block mt-1 break-all text-[11px] text-amber-800">{generatedToken}</code></div>}
+        {workspaces.length > 0 && <div className="mt-4 border border-sky-200 bg-sky-50 rounded-lg p-3"><p className="text-xs font-semibold text-sky-900">Accept an invitation</p><div className="flex gap-2 mt-1"><input aria-label="Workspace invitation token" value={inviteToken} onChange={(e) => setInviteToken(e.target.value)} placeholder="Paste invitation token" className="flex-1 px-2 py-1 border border-slate-300 rounded text-xs" /><button type="button" disabled={!inviteToken.trim()} onClick={acceptInvite} className="px-2 py-1 rounded bg-sky-600 text-white text-xs disabled:opacity-50">Accept</button></div></div>}
         {error && <p role="alert" className="mt-4 text-sm text-red-600">{error}</p>}
         <button type="button" onClick={() => { setMode(mode === "login" ? "register" : "login"); setMessage(null); setError(null); }} className="mt-5 text-sm text-sky-700 underline">{mode === "login" ? "Create a new account" : "Use an existing account"}</button>
       </div>
