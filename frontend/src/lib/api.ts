@@ -157,6 +157,19 @@ export interface DocumentationInventory {
   documents: DocumentationFile[];
 }
 
+export interface DocumentationGap {
+  file_path: string;
+  undocumented_symbols: number;
+}
+
+export interface DocumentationQuality {
+  symbol_count: number;
+  documented_symbol_count: number;
+  undocumented_symbol_count: number;
+  coverage: number;
+  gaps: DocumentationGap[];
+}
+
 export interface LatestChangeAnalysis {
   sha: string;
   short_sha: string;
@@ -326,6 +339,11 @@ export const api = {
 
   getDocumentation: async (repoId: string): Promise<DocumentationInventory> => {
     const { data } = await client.get<DocumentationInventory>(`/repos/${repoId}/documentation`);
+    return data;
+  },
+
+  getDocumentationQuality: async (repoId: string): Promise<DocumentationQuality> => {
+    const { data } = await client.get<DocumentationQuality>(`/repos/${repoId}/documentation/quality`);
     return data;
   },
 

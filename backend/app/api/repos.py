@@ -372,3 +372,18 @@ async def get_technical_debt_signals(
     if repository.status != "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before debt signals are available.")
     return await DependencyGraphService().build_debt_summary(repo_id, db)
+
+
+@router.get("/{repo_id}/documentation/quality")
+async def get_documentation_quality(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Return symbol-level documentation coverage and gaps."""
+    repo_result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = repo_result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before documentation quality is available.")
+    return await DependencyGraphService().build_documentation_quality(repo_id, db)

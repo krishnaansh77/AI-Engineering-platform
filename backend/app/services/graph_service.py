@@ -199,6 +199,29 @@ class DependencyGraphService:
             "chunks_analyzed": len(chunks),
         }
 
+    async def build_documentation_quality(self, repo_id: uuid.UUID, db: AsyncSession) -> dict:
+        """Measure symbol docstring coverage for documentation planning."""
+        from app.models.code_chunk import CodeChunk
+
+        result = await db.execute(select(CodeChunk).where(CodeChunk.repository_id == repo_id))
+        symbols = [chunk for chunk in result.scalars().all() if chunk.symbol_name and chunk.symbol_name != "__imports__"]
+        documented = [chunk for chunk in symbols if chunk.docstring and chunk.docstring.strip()]
+        missing_by_file: Dict[str, int] = {}
+        for chunk in symbols:
+            if not chunk.docstring or not chunk.docstring.strip():
+                missing_by_file[chunk.file_path] = missing_by_file.get(chunk.file_path, 0) + 1
+        gaps = [
+            {"file_path": path, "undocumented_symbols": count}
+            for path, count in sorted(missing_by_file.items(), key=lambda item: (-item[1], item[0]))[:10]
+        ]
+        return {
+            "symbol_count": len(symbols),
+            "documented_symbol_count": len(documented),
+            "undocumented_symbol_count": len(symbols) - len(documented),
+            "coverage": round(len(documented) / len(symbols), 3) if symbols else 0,
+            "gaps": gaps,
+        }
+
     @staticmethod
     def classify_layer(file_path: str) -> str:
         """Infer a useful architecture layer from a repository-relative path."""
