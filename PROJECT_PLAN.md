@@ -10,6 +10,9 @@ This file is the practical handoff document for the project. It records what is 
 - Latest verified baseline: **24 backend tests passing** and the Next.js production build passing
 - Repository: `https://github.com/krishnaansh77/AI-Engineering-platform.git`
 - Local workspace: `/Users/ayushpatel/AI Software Engineering Intelligence Platform`
+- Railway deployment: backend, PostgreSQL, Redis, Celery worker, and frontend are all **Online** in the production environment.
+- Live frontend: `https://zoological-mercy-production-8922.up.railway.app`
+- Live backend: `https://ai-engineering-platform-production.up.railway.app`
 
 The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAPI, Celery worker, and Next.js.
 
@@ -63,7 +66,9 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - GitHub Actions CI for backend tests, frontend production builds, and repository hygiene checks without provider secrets
 - Docker readiness checks for the backend and dependency-gated frontend startup; README quick-start and security notes refreshed
 - Backend status metadata now reflects Phase 3 and `/health` checks both PostgreSQL and Redis readiness
-- Production deployment runbook added at `docs/deployment.md`; no external deployment has been performed yet
+- Production deployment runbook added at `docs/deployment.md`; Railway production deployment is now active.
+- Railway frontend uses a same-origin `/api` proxy backed by the private `BACKEND_URL` build variable, avoiding browser cross-origin failures.
+- Railway worker runs Celery with `--concurrency=2` and uses Railway-linked PostgreSQL and Redis variables.
 - Backend and frontend Docker build contexts now exclude local secrets, Git metadata, caches, and generated dependencies
 - Railway-specific service mapping and deployment checklist added at `docs/railway-deployment.md`
 - Accessibility polish across Phase 3 panels: labels for controls, visible keyboard focus states, and live alert/status regions
@@ -140,7 +145,7 @@ No input is required for the next local development steps. When ready, the follo
 
 1. **Benchmark set:** 10–20 real questions with expected file paths for RAG evaluation.
 2. **GitHub PAT:** place it locally in `.env` only if private repositories or higher GitHub API limits are needed.
-3. **Deployment target:** choose later between local-only, Render/Fly.io/Railway, or Vercel plus a hosted backend/database.
+3. **Deployment target:** Railway is selected and active; next deployment work is custom domains, monitoring, backups, and spend controls.
 4. **Priority choice for Phase 3:** documentation generation, real PR comparison, issue intelligence hardening, or evaluation/CI.
 
 ## Development and verification checklist
