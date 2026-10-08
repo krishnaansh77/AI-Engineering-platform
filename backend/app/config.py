@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # ── GitHub ────────────────────────────────────────────────────────────────
     GITHUB_PAT: str = ""
     GITHUB_WEBHOOK_SECRET: str = ""
+    GITHUB_APP_ID: str = ""
+    GITHUB_APP_INSTALLATION_ID: str = ""
+    GITHUB_APP_PRIVATE_KEY: str = ""
 
     # ── Retrieval ─────────────────────────────────────────────────────────────
     RETRIEVAL_TOP_K: int = 20

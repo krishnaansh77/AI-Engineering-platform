@@ -13,6 +13,7 @@ from app.models.repository import Repository
 from app.models.source_file import SourceFile
 from app.services.embedding_service import EmbeddingService
 from app.services.github_service import GitHubService
+from app.services.github_app_service import GitHubAppService
 from app.services.parser_service import ParserService
 
 logger = logging.getLogger(__name__)
@@ -54,9 +55,19 @@ class IndexingService:
 
             # 1. Clone or pull repo
             logger.info("Cloning repository %s (%s)", repo.full_name, repo.github_url)
+            github_token = settings.GITHUB_PAT
+            app_auth = GitHubAppService(settings.GITHUB_APP_ID, settings.GITHUB_APP_PRIVATE_KEY, settings.GITHUB_APP_INSTALLATION_ID)
+            if app_auth.configured:
+                try:
+                    github_token = await app_auth.installation_token()
+                    logger.info("Using GitHub App installation token for %s", repo.full_name)
+                except Exception:
+                    logger.exception("GitHub App token exchange failed for %s", repo.full_name)
+                    if not github_token:
+                        raise
             clone_path = self.github_service.clone_repository(
                 github_url=repo.github_url,
-                pat=settings.GITHUB_PAT,
+                pat=github_token,
                 dest_dir=settings.REPOS_CLONE_DIR,
             )
             repo.clone_path = clone_path
