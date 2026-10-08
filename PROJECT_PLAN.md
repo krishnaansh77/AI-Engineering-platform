@@ -59,6 +59,7 @@ The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAP
 - Best-effort Redis-backed API rate limiting and configurable request-size protection with structured `429` and `413` error payloads
 - Standardized structured error details for provider outages, GitHub issue failures, and unavailable PR refs, with frontend parsing support
 - Expanded boundary tests for GitHub retries/filtering, parser fallbacks, schema errors, dependency graph behavior, caching keys, and PR diff analysis
+- Opt-in heuristic secret scan with redacted file/line findings and no automatic indexing-time execution
 - RAG evaluation endpoint with Recall@K and MRR
 - RAG evaluation UI supporting multiple benchmark cases
 - Per-case and average retrieval latency in evaluation results
@@ -107,7 +108,7 @@ Phase 3 is not finished yet. The remaining work is listed below.
 1. Add mocked integration tests for GitHub, Redis, indexing, search, and issue analysis — core GitHub, parser, graph, cache, schema, and PR-analysis boundaries are covered; database-backed endpoint tests remain.
 2. Add API rate limits and request-size limits where appropriate — baseline protection complete; endpoint-specific limits and broader tests remain.
 3. Add structured error codes and user-facing retry guidance — baseline provider, GitHub, PR, rate-limit, and request-size errors complete.
-4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic.
+4. Add basic secret-pattern scanning as an opt-in, clearly labeled heuristic — complete for common private-key, AWS-key, and assignment-style API-key patterns; future work may add more languages and false-positive controls.
 5. Improve accessibility and responsive behavior across the repository detail page.
 
 ### Phase 4 — Production and advanced capabilities
@@ -149,6 +150,7 @@ Expected baseline at the time this plan was written:
 - After the PR comparison milestone: `26 passed`
 - After the issue intelligence milestone: `28 passed`
 - After the boundary-test milestone: `32 passed, 1 skipped` (Tree-sitter-specific test is dependency-aware)
+- After the secret-scan milestone: `34 passed, 1 skipped`
 - Frontend build: successful
 - Redis: `PONG`
 - Backend health: `database=healthy`

@@ -184,6 +184,13 @@ export interface DocumentationPreview {
   saved: boolean;
 }
 
+export interface SecretScanResult {
+  heuristic: boolean;
+  scanned_files: number;
+  finding_count: number;
+  findings: Array<{ file_path: string; line: number; pattern: string; confidence: string; redacted_preview: string }>;
+}
+
 export interface LatestChangeAnalysis {
   sha: string;
   short_sha: string;
@@ -399,6 +406,11 @@ export const api = {
 
   generateDocumentationPreview: async (repoId: string, filePath: string, audience = "developers"): Promise<DocumentationPreview> => {
     const { data } = await client.post<DocumentationPreview>(`/repos/${repoId}/documentation/generate-preview`, { file_path: filePath, audience });
+    return data;
+  },
+
+  scanSecrets: async (repoId: string): Promise<SecretScanResult> => {
+    const { data } = await client.post<SecretScanResult>(`/repos/${repoId}/security/secrets/scan`);
     return data;
   },
 

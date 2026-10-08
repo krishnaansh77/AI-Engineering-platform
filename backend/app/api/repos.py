@@ -35,6 +35,7 @@ from app.services.graph_service import DependencyGraphService
 from app.services.github_service import GitHubService
 from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
+from app.services.secret_scan_service import SecretScanService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"])
@@ -371,6 +372,22 @@ async def get_repository_documentation(
     if not repository.clone_path:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Repository clone is unavailable.")
     return {"documents": GitHubService().list_documentation_files(repository.clone_path)}
+
+
+@router.post("/{repo_id}/security/secrets/scan")
+async def scan_repository_secrets(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Run an explicit heuristic scan without returning secret values."""
+    result = await db.execute(select(Repository).where(Repository.id == repo_id))
+    repository = result.scalar_one_or_none()
+    if not repository:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Repository {repo_id} not found")
+    if repository.status != "ready" or not repository.clone_path:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must be ready before security scanning is available.")
+    files = GitHubService().list_source_files(repository.clone_path)
+    return SecretScanService().scan(repository.clone_path, files)
 
 
 @router.post("/{repo_id}/documentation/generate-preview")
