@@ -1,9 +1,22 @@
 """Unit tests for Reciprocal Rank Fusion (RRF) algorithm and ranking logic."""
 import unittest
 import uuid
+from types import SimpleNamespace
+
+from app.services.retrieval_service import _metadata_ranked_ids
 
 
 class TestRetrievalMath(unittest.TestCase):
+    def test_metadata_ranking_prioritizes_named_service_files(self):
+        target = uuid.uuid4()
+        other = uuid.uuid4()
+        chunks = [
+            SimpleNamespace(id=other, file_path="backend/app/services/parser_service.py", symbol_name="parse", chunk_type="function"),
+            SimpleNamespace(id=target, file_path="backend/app/services/secret_scan_service.py", symbol_name="scan", chunk_type="class"),
+        ]
+        ranked = _metadata_ranked_ids(chunks, "How are secret scan findings detected?", 2)
+        self.assertEqual(ranked[0], target)
+
     def test_rrf_scoring_logic(self):
         """Verify that items ranked high in both vector and lexical search get higher RRF scores."""
         item_a = uuid.uuid4()

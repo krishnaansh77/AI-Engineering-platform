@@ -15,6 +15,33 @@ from app.services.embedding_service import EmbeddingService
 logger = logging.getLogger(__name__)
 
 
+def _metadata_ranked_ids(chunks: List[CodeChunk], query: str, limit: int) -> List[uuid.UUID]:
+    """Rank chunks by exact query-token matches in paths and symbols.
+
+    This is intentionally a small third retrieval signal for identifier-heavy
+    questions such as "where is secret scanning implemented?". It does not
+    replace semantic or BM25 retrieval.
+    """
+    import re
+
+    stop_words = {"where", "is", "are", "how", "what", "which", "does", "the", "in", "to", "of", "a", "an", "and", "for"}
+
+    def tokens(value: str) -> set[str]:
+        return set(re.findall(r"[a-z0-9]+", value.lower().replace("_", " ")))
+
+    query_tokens = tokens(query) - stop_words
+    if not query_tokens:
+        return []
+    scored = []
+    for chunk in chunks:
+        metadata_tokens = tokens(chunk.file_path) | tokens(chunk.symbol_name or "") | tokens(chunk.chunk_type)
+        overlap = len(query_tokens & metadata_tokens)
+        if overlap:
+            scored.append((overlap, chunk.id))
+    scored.sort(key=lambda item: (-item[0], str(item[1])))
+    return [chunk_id for _, chunk_id in scored[:limit]]
+
+
 @dataclass
 class RetrievedChunk:
     """A retrieved code chunk with relevance score and location metadata."""
@@ -85,6 +112,7 @@ class RetrievalService:
 
         # 3. BM25 Search with code-aware tokenization and symbol weighting
         bm25_ranked_ids: List[uuid.UUID] = []
+        metadata_ranked_ids = _metadata_ranked_ids(all_chunks, query, top_k)
         try:
             import re
 
@@ -150,6 +178,9 @@ class RetrievalService:
             rrf_scores[cid] = rrf_scores.get(cid, 0.0) + (1.0 / (rrf_k + rank))
 
         for rank, cid in enumerate(bm25_ranked_ids, start=1):
+            rrf_scores[cid] = rrf_scores.get(cid, 0.0) + (1.0 / (rrf_k + rank))
+
+        for rank, cid in enumerate(metadata_ranked_ids, start=1):
             rrf_scores[cid] = rrf_scores.get(cid, 0.0) + (1.0 / (rrf_k + rank))
 
         # If both failed or empty, fallback to first few chunks

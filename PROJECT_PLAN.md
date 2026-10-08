@@ -106,7 +106,7 @@ Phase 3 is not finished yet. One retrieval-quality improvement remains; the prev
 - Never paste API keys or PATs into chat or commit them. Put them only in local `.env`, which is ignored by Git.
 - Documentation and test coverage are heuristic signals, not replacements for runtime coverage or human review.
 - Commit impact analysis uses the files available in the local shallow clone.
-- Formal RAG evaluation now has a repository-specific 10-case benchmark; the current baseline is recorded above. A subsequent full re-index was blocked by the Gemini free embedding request limit, so no provider-space mixing was introduced.
+- Formal RAG evaluation now has a repository-specific 10-case benchmark; the current baseline is recorded above. Metadata-aware ranking for exact file-path and symbol queries is now implemented; the benchmark should be rerun after the Gemini embedding quota resets because the attempted full re-index was rate-limited.
 - Gemini quota limits can temporarily return a controlled `503`; Redis caching reduces repeated LLM calls but does not remove provider limits.
 
 ## Next work plan
