@@ -22,7 +22,9 @@ export default function IssueIntelligencePanel({ repoId }: { repoId: string }) {
     try { setAnalysis(await api.analyzeIssue(repoId, number)); } catch (reason) { setError(getErrorMessage(reason)); } finally { setAnalyzing(null); }
   };
 
-  if (loading || issues.length === 0) return null;
+  if (loading) return null;
+  if (error) return <section aria-label="Issue intelligence error" className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-5"><p role="alert" className="text-xs text-red-600">{error}</p></section>;
+  if (issues.length === 0) return null;
 
   return (
     <section className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-5">

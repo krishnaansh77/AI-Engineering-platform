@@ -78,12 +78,15 @@ export default function ConnectRepoPage() {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* GitHub URL */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="github-repository-url" className="block text-sm font-medium text-slate-700 mb-1.5">
               GitHub Repository URL
               <span className="text-red-500 ml-0.5">*</span>
             </label>
             <input
+              id="github-repository-url"
               type="url"
+              aria-invalid={Boolean(urlError)}
+              aria-describedby={urlError ? "github-url-error" : undefined}
               value={githubUrl}
               onChange={(e) => {
                 setGithubUrl(e.target.value);
@@ -98,7 +101,7 @@ export default function ConnectRepoPage() {
               }`}
             />
             {urlError && (
-              <p className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
+              <p id="github-url-error" role="alert" className="mt-1.5 text-xs text-red-600 flex items-center gap-1">
                 <AlertCircle className="w-3 h-3" />
                 {urlError}
               </p>
@@ -107,11 +110,12 @@ export default function ConnectRepoPage() {
 
           {/* Optional name */}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+            <label htmlFor="repository-display-name" className="block text-sm font-medium text-slate-700 mb-1.5">
               Display Name{" "}
               <span className="text-slate-400 font-normal">(optional)</span>
             </label>
             <input
+              id="repository-display-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -134,7 +138,7 @@ export default function ConnectRepoPage() {
 
           {/* Error */}
           {error && (
-            <div className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+            <div role="alert" className="flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
               <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <p>{error}</p>
             </div>
@@ -143,6 +147,7 @@ export default function ConnectRepoPage() {
           {/* Submit */}
           <button
             type="submit"
+            aria-busy={loading}
             disabled={loading || !githubUrl}
             className="w-full flex items-center justify-center gap-2 bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 disabled:cursor-not-allowed text-white px-4 py-2.5 rounded-lg text-sm font-medium shadow-sm"
           >
