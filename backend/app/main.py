@@ -107,6 +107,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             await asyncio.to_thread(_upgrade_database)
             logger.info("Database migrations applied successfully.")
         await create_all_tables()
+        _migration_startup_error = None
         logger.info("Database tables and pgvector extension initialized successfully.")
     except Exception as e:
         _migration_startup_error = re.sub(r"(?:postgres(?:ql)?|redis)\+?[^:]*://\S+", "<redacted-url>", str(e))[:240]
