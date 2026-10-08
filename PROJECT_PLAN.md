@@ -152,7 +152,7 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
 
 ### Phase 4 — Production and advanced capabilities
 
-- Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migration `003_users`, and a frontend account screen. GitHub documentation writes now require an authenticated member/admin/owner role; read-only repository intelligence remains backward-compatible while broader endpoint protection is added.
+- Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migration `003_users`, and a frontend account screen. Documentation writes and repository connect/re-index/delete mutations now require authenticated role checks; read-only repository intelligence remains backward-compatible.
 - Multi-repository workspaces
 - GitHub App instead of PAT-only access
 - Full PR and branch comparison

@@ -103,6 +103,7 @@ def _dispatch_indexing_task(repo_id: uuid.UUID) -> None:
 async def connect_repository(
     payload: ConnectRepoRequest,
     db: AsyncSession = Depends(get_db),
+    _user=Depends(require_roles("owner", "admin")),
 ) -> Repository:
     """Connect a new GitHub repository and initiate background indexing."""
     try:
@@ -171,6 +172,7 @@ async def get_repository(
 async def reindex_repository(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    _user=Depends(require_roles("owner", "admin", "member")),
 ) -> dict:
     """Trigger a manual re-index of the repository."""
     stmt = select(Repository).where(Repository.id == repo_id)
@@ -194,6 +196,7 @@ async def reindex_repository(
 async def delete_repository(
     repo_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
+    _user=Depends(require_roles("owner", "admin")),
 ) -> None:
     """Delete a repository and all associated files and chunks (cascading)."""
     stmt = select(Repository).where(Repository.id == repo_id)
