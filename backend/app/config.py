@@ -67,6 +67,8 @@ class Settings(BaseSettings):
     AUTH_RATE_LIMIT_PER_MINUTE: int = 10
     API_MAX_REQUEST_BYTES: int = 1_000_000
     LLM_DAILY_REQUEST_LIMIT: int = 100
+    LLM_INPUT_COST_PER_MILLION_TOKENS: float = 0.0
+    LLM_OUTPUT_COST_PER_MILLION_TOKENS: float = 0.0
 
     # ── Storage ───────────────────────────────────────────────────────────────
     REPOS_CLONE_DIR: str = "/repos"

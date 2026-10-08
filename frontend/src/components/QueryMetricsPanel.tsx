@@ -28,6 +28,7 @@ export default function QueryMetricsPanel({ repoId }: { repoId: string }) {
         <Metric icon={<Gauge className="w-3.5 h-3.5" />} label="Prompt tokens" value={metrics.prompt_tokens.toLocaleString()} />
         <Metric icon={<Gauge className="w-3.5 h-3.5" />} label="Output tokens" value={metrics.completion_tokens.toLocaleString()} />
       </div>
+      <p className="mt-3 text-[11px] text-slate-500">Estimated provider cost: <span className="font-semibold text-slate-700">${metrics.estimated_cost_usd.toFixed(4)}</span>. Configure token rates for a non-zero estimate.</p>
     </section>
   );
 }

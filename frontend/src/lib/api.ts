@@ -151,6 +151,7 @@ export interface QueryMetrics {
   prompt_tokens: number;
   completion_tokens: number;
   total_tokens: number;
+  estimated_cost_usd: number;
 }
 
 export interface SourceFilePreview {

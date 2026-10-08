@@ -9,6 +9,20 @@ def usage_key(user_id: uuid.UUID, day: str | None = None) -> str:
     return f"aise:usage:llm:{user_id}:{current_day}"
 
 
+def estimate_llm_cost(
+    prompt_tokens: int,
+    completion_tokens: int,
+    input_rate_per_million: float,
+    output_rate_per_million: float,
+) -> float:
+    """Estimate provider cost from token counts and configured rates."""
+    return round(
+        max(prompt_tokens, 0) * max(input_rate_per_million, 0.0) / 1_000_000
+        + max(completion_tokens, 0) * max(output_rate_per_million, 0.0) / 1_000_000,
+        6,
+    )
+
+
 async def consume_llm_request(redis_url: str, user_id: uuid.UUID, limit: int) -> tuple[bool, int]:
     """Consume one daily request slot and return (allowed, remaining)."""
     if limit <= 0:

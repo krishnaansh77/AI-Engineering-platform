@@ -22,7 +22,7 @@ from app.services.llm_service import LLMService
 from app.services.retrieval_service import RetrievalService
 from app.services.query_cache import build_query_cache_key
 from app.services.evaluation_service import aggregate_scores, score_retrieval
-from app.services.usage_service import consume_llm_request
+from app.services.usage_service import consume_llm_request, estimate_llm_cost
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["query"], dependencies=[Depends(get_current_user), Depends(require_repository_access)])
@@ -349,4 +349,10 @@ async def get_query_metrics(
         "prompt_tokens": int(prompt_tokens or 0),
         "completion_tokens": int(completion_tokens or 0),
         "total_tokens": int((prompt_tokens or 0) + (completion_tokens or 0)),
+        "estimated_cost_usd": estimate_llm_cost(
+            int(prompt_tokens or 0),
+            int(completion_tokens or 0),
+            settings.LLM_INPUT_COST_PER_MILLION_TOKENS,
+            settings.LLM_OUTPUT_COST_PER_MILLION_TOKENS,
+        ),
     }
