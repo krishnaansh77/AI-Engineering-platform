@@ -1,6 +1,6 @@
 const app = document.querySelector("#app");
 const API_BASE = window.__AISE_API_BASE__ || "/api";
-const state = { user: null, authMode: "login", loading: false, graphData: null, graphRepoId: null, cy: null, refreshTimer: null };
+const state = { user: null, authMode: "login", loading: false, graphData: null, graphRepoId: null, graphMode: "connected", cy: null, refreshTimer: null };
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 const token = () => localStorage.getItem("aise_access_token");
@@ -62,9 +62,10 @@ async function repoView(id) {
     if (repo.unavailable) throw new Error(repo.unavailable);
     state.graphData = graph.unavailable ? null : graph;
     state.graphRepoId = id;
+    state.graphMode = "connected";
     const unavailable = (data) => data?.unavailable ? `<p class="muted">Unavailable: ${escapeHtml(data.unavailable)}</p>` : null;
     const fileList = unavailable(files) || `<div class="data-list">${files.slice(0, 20).map((file) => `<div class="data-row"><span>${escapeHtml(file.file_path)}</span>${previewButton(id, file.file_path)}</div>`).join("") || "<p class='muted'>No indexed files available yet.</p>"}</div>${files.length > 20 ? `<p class="muted" style="margin-top:12px">Showing 20 of ${files.length} files.</p>` : ""}`;
-    const graphPanel = unavailable(graph) || `<section class="card graph-card" aria-labelledby="dependency-graph-title"><div class="graph-head"><div><p class="eyebrow">Focus + context map</p><h2 id="dependency-graph-title">Dependency graph</h2><p class="muted">Select a file to trace its imports and dependants. The indexed file list remains the complete, keyboard-friendly view.</p></div><div class="graph-actions"><button class="button secondary" data-action="graph-reset" type="button">Clear focus</button><button class="button secondary" data-action="graph-fit" type="button">Fit graph</button><button class="button secondary" data-action="graph-layout" type="button">Re-layout</button></div></div><div id="dependency-graph" class="dependency-graph" role="img" aria-label="Interactive dependency graph of indexed files"></div><div class="graph-footer"><div class="graph-legend" aria-label="Graph legend"><span><i class="legend-dot backend"></i>Backend</span><span><i class="legend-dot frontend"></i>Frontend</span><span><i class="legend-dot tests"></i>Tests</span><span><i class="legend-dot configuration"></i>Config/docs</span><span><i class="legend-line outgoing"></i>Imports</span><span><i class="legend-line incoming"></i>Imported by</span></div><div id="graph-selection" class="graph-selection" role="status" aria-live="polite">Select a node to inspect its direct relationships.</div></div></section>`;
+    const graphPanel = unavailable(graph) || `<section class="card graph-card" aria-labelledby="dependency-graph-title"><div class="graph-head"><div><p class="eyebrow">Architecture map</p><h2 id="dependency-graph-title">Dependency graph</h2><p class="muted">The default map shows only files with relationships, arranged by inferred layer. Select a node to trace imports and dependants.</p></div><div class="graph-actions"><button class="button secondary" data-action="graph-reset" type="button">Reset focus</button><button class="button secondary" data-action="graph-fit" type="button">Fit map</button><button class="button secondary" data-action="graph-layout" type="button">Re-layout</button></div></div><div class="graph-toolbar"><div class="graph-view-switch" role="group" aria-label="Graph scope"><button class="button secondary graph-view-button is-active" data-action="graph-view" data-view="connected" type="button" aria-pressed="true">Connected map</button><button class="button secondary graph-view-button" data-action="graph-view" data-view="all" type="button" aria-pressed="false">All files</button></div><span id="graph-summary" class="graph-summary" role="status" aria-live="polite"></span></div><div id="dependency-graph" class="dependency-graph" role="img" aria-label="Interactive dependency graph of indexed files"></div><div class="graph-footer"><div class="graph-legend" aria-label="Graph legend"><span><i class="legend-dot backend"></i>Backend</span><span><i class="legend-dot frontend"></i>Frontend</span><span><i class="legend-dot tests"></i>Tests</span><span><i class="legend-dot configuration"></i>Config/docs</span><span><i class="legend-line outgoing"></i>Imports</span><span><i class="legend-line incoming"></i>Imported by</span></div><div id="graph-selection" class="graph-selection" role="status" aria-live="polite">Select a node to inspect its direct relationships.</div></div></section>`;
     const indexingNotice = ["indexing", "pending"].includes(repo.status) ? `<div class="indexing-notice" role="status" aria-live="polite"><span class="indexing-pulse" aria-hidden="true"></span><div><strong>Indexing in progress</strong><p>Repository intelligence will appear as files are parsed. This page refreshes automatically.</p></div></div>` : repo.status === "error" ? `<div class="alert" role="alert"><strong>Indexing needs attention.</strong> Re-index the repository to retry.</div>` : "";
     const tourPanel = unavailable(tour) || `<div class="data-list"><div class="data-row"><span>Connected files</span><strong>${tour.file_count || 0}</strong></div><div class="data-row"><span>Relationships</span><strong>${tour.relationship_count || 0}</strong></div>${(tour.key_files || []).slice(0, 5).map((item) => `<div class="data-row"><span><strong>${escapeHtml(item.file_path)}</strong><small>${escapeHtml(item.layer)} · ${item.connections} connections</small></span>${previewButton(id, item.file_path)}</div>`).join("")}</div>`;
     const latestPanel = unavailable(latestChange) || `<p class="muted">${escapeHtml(latestChange.short_sha || "")} · ${escapeHtml(latestChange.author || "Unknown")}</p><h3>${escapeHtml(latestChange.message || "Latest change")}</h3><div class="data-list"><div class="data-row"><span>Changes</span><strong>+${latestChange.insertions || 0} / −${latestChange.deletions || 0}</strong></div><div class="data-row"><span>Files changed</span><strong>${(latestChange.changed_files || []).length}</strong></div></div><p class="muted">${(latestChange.recommendations || []).map(escapeHtml).join(" ")}</p>`;
@@ -85,7 +86,9 @@ function graphLayer(filePath) {
 
 function graphLabel(filePath) {
   const path = String(filePath || "");
-  return path.split("/").pop() || path;
+  const parts = path.split("/").filter(Boolean);
+  const label = parts.slice(-3).join("/") || path;
+  return label.length > 30 ? `…${label.slice(-29)}` : label;
 }
 
 function prefersReducedMotion() {
@@ -122,7 +125,44 @@ function focusGraphNode(node) {
 
 function runGraphLayout(animate = !prefersReducedMotion()) {
   if (!state.cy) return;
-  state.cy.layout({ name: "cose", animate, animationDuration: animate ? 520 : 0, fit: true, padding: 38, nodeRepulsion: 9000, idealEdgeLength: 115, edgeElasticity: 0.35, nestingFactor: 1.2, gravity: 0.22, randomize: true }).run();
+  const container = document.querySelector("#dependency-graph");
+  const positions = buildGraphPositions(state.cy.nodes().toArray(), container);
+  state.cy.layout({ name: "preset", positions, animate, animationDuration: animate ? 420 : 0, fit: true, padding: 48 }).run();
+}
+
+function buildGraphPositions(nodes, container) {
+  const layerOrder = ["frontend", "backend", "tests", "configuration", "other"];
+  const width = Math.max(container?.clientWidth || 820, 620);
+  const height = Math.max(460, Math.min(760, 118 + Math.max(...layerOrder.map((layer) => nodes.filter((node) => node.data("layer") === layer).length), 1) * 72));
+  const columns = layerOrder.filter((layer) => nodes.some((node) => node.data("layer") === layer));
+  const sidePadding = 95;
+  const columnGap = columns.length > 1 ? (width - sidePadding * 2) / (columns.length - 1) : 0;
+  const positions = {};
+  columns.forEach((layer, columnIndex) => {
+    const group = nodes
+      .filter((node) => node.data("layer") === layer)
+      .sort((left, right) => (right.data("connections") - left.data("connections")) || left.data("filePath").localeCompare(right.data("filePath")));
+    const rowGap = Math.min(78, (height - 104) / Math.max(group.length, 1));
+    const startY = (height - rowGap * (group.length - 1)) / 2;
+    group.forEach((node, rowIndex) => {
+      positions[node.id()] = { x: columns.length === 1 ? width / 2 : sidePadding + columnIndex * columnGap, y: startY + rowIndex * rowGap };
+    });
+  });
+  return positions;
+}
+
+function updateGraphViewControls(visibleNodeCount, visibleEdgeCount) {
+  const summary = document.querySelector("#graph-summary");
+  const totalNodes = state.graphData?.nodes?.length || 0;
+  const hidden = Math.max(totalNodes - visibleNodeCount, 0);
+  if (summary) summary.textContent = state.graphMode === "connected"
+    ? `Showing ${visibleNodeCount} connected files · ${visibleEdgeCount} imports · ${hidden} isolated hidden`
+    : `Showing all ${visibleNodeCount} indexed files · ${visibleEdgeCount} imports`;
+  document.querySelectorAll("[data-action='graph-view']").forEach((button) => {
+    const active = button.dataset.view === state.graphMode;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
 }
 
 function mountDependencyGraph() {
@@ -137,9 +177,20 @@ function mountDependencyGraph() {
   }
   const degree = new Map(nodes.map((node) => [node.id, 0]));
   edges.forEach((edge) => { degree.set(edge.source, (degree.get(edge.source) || 0) + 1); degree.set(edge.target, (degree.get(edge.target) || 0) + 1); });
+  const visibleNodes = state.graphMode === "connected" ? nodes.filter((node) => (degree.get(node.id) || 0) > 0) : nodes;
+  const visibleIds = new Set(visibleNodes.map((node) => node.id));
+  const visibleEdges = edges.filter((edge) => visibleIds.has(edge.source) && visibleIds.has(edge.target));
+  updateGraphViewControls(visibleNodes.length, visibleEdges.length);
+  if (!visibleNodes.length) {
+    container.innerHTML = `<div class="graph-empty"><strong>No connected files yet.</strong><span>Switch to All files or re-index after source relationships are available.</span></div>`;
+    return;
+  }
   const elements = [
-    ...nodes.map((node) => ({ group: "nodes", data: { id: node.id, filePath: node.file_path, label: graphLabel(node.file_path), layer: graphLayer(node.file_path), connections: degree.get(node.id) || 0, symbols: node.symbols || [] } })),
-    ...edges.map((edge, index) => ({ group: "edges", data: { id: `edge-${index}`, source: edge.source, target: edge.target, importText: edge.import || "" } })),
+    ...visibleNodes.map((node) => {
+      const connections = degree.get(node.id) || 0;
+      return { group: "nodes", data: { id: node.id, filePath: node.file_path, label: graphLabel(node.file_path), layer: graphLayer(node.file_path), connections, size: Math.min(46, 25 + connections * 3), symbols: node.symbols || [] } };
+    }),
+    ...visibleEdges.map((edge, index) => ({ group: "edges", data: { id: `edge-${index}`, source: edge.source, target: edge.target, importText: edge.import || "" } })),
   ];
   state.cy = window.cytoscape({
     container,
@@ -149,13 +200,13 @@ function mountDependencyGraph() {
     wheelSensitivity: 0.18,
     pixelRatio: "auto",
     style: [
-      { selector: "node", style: { "background-color": "#7386b8", "border-color": "#ffffff", "border-width": 2, "height": "mapData(connections, 0, 12, 18, 42)", "width": "mapData(connections, 0, 12, 18, 42)", "label": "data(label)", "font-size": 9, "font-family": "Inter, system-ui, sans-serif", color: "#172033", "text-opacity": 0, "text-background-color": "#ffffff", "text-background-opacity": 0.92, "text-background-padding": 3, "text-wrap": "ellipsis", "text-max-width": 120, "text-valign": "bottom", "text-margin-y": 8, "overlay-color": "#5c8cff", "overlay-opacity": 0, "z-index": 2, "transition-property": "background-color, border-color, border-width, opacity, text-opacity, overlay-opacity", "transition-duration": "220ms" } },
+      { selector: "node", style: { "background-color": "#7386b8", "border-color": "#ffffff", "border-width": 2, "height": "data(size)", "width": "data(size)", "label": "data(label)", "font-size": 10, "font-family": "Inter, system-ui, sans-serif", color: "#172033", "text-opacity": 1, "text-background-color": "#f9fbff", "text-background-opacity": 0.9, "text-background-padding": 3, "text-wrap": "ellipsis", "text-max-width": 150, "text-valign": "bottom", "text-margin-y": 8, "overlay-color": "#5c8cff", "overlay-opacity": 0, "z-index": 2, "transition-property": "background-color, border-color, border-width, opacity, text-opacity, overlay-opacity", "transition-duration": "220ms" } },
       { selector: "node[layer = 'backend']", style: { "background-color": "#5c8cff", shape: "round-rectangle" } },
       { selector: "node[layer = 'frontend']", style: { "background-color": "#4bb6a6", shape: "ellipse" } },
       { selector: "node[layer = 'tests']", style: { "background-color": "#f2af52", shape: "hexagon" } },
       { selector: "node[layer = 'configuration']", style: { "background-color": "#a579cf", shape: "diamond" } },
       { selector: "node[layer = 'other']", style: { "background-color": "#93a0b9", shape: "ellipse" } },
-      { selector: "edge", style: { width: 1.15, "line-color": "#b8c1d6", "target-arrow-color": "#b8c1d6", "target-arrow-shape": "triangle", "curve-style": "bezier", "line-opacity": 0.24, "arrow-scale": 0.7, "transition-property": "line-color, line-opacity, width, opacity", "transition-duration": "240ms", "z-index": 1 } },
+      { selector: "edge", style: { width: 1.25, "line-color": "#9aa8c4", "target-arrow-color": "#9aa8c4", "target-arrow-shape": "triangle", "curve-style": "bezier", "line-opacity": 0.58, "arrow-scale": 0.62, "transition-property": "line-color, line-opacity, width, opacity", "transition-duration": "240ms", "z-index": 1 } },
       { selector: ".is-faded", style: { opacity: 0.12, "text-opacity": 0 } },
       { selector: ".is-neighbor", style: { "border-color": "#ffffff", "border-width": 3, "text-opacity": 1, "z-index": 4 } },
       { selector: ".is-selected", style: { "background-color": "#172033", "border-color": "#78a0ff", "border-width": 4, "overlay-opacity": 0.22, "text-opacity": 1, "z-index": 6 } },
@@ -163,7 +214,7 @@ function mountDependencyGraph() {
       { selector: ".is-outgoing", style: { "line-color": "#f3a94d", "target-arrow-color": "#f3a94d", "line-opacity": 0.95, width: 2.6, "z-index": 3 } },
       { selector: ".is-incoming", style: { "line-color": "#3bbdac", "target-arrow-color": "#3bbdac", "line-opacity": 0.95, width: 2.6, "z-index": 3 } },
     ],
-    layout: { name: "cose", animate: !prefersReducedMotion(), animationDuration: prefersReducedMotion() ? 0 : 520, fit: true, padding: 38, nodeRepulsion: 9000, idealEdgeLength: 115, edgeElasticity: 0.35, nestingFactor: 1.2, gravity: 0.22, randomize: true },
+    layout: { name: "preset", positions: buildGraphPositions(visibleNodes.map((node) => ({ id: () => node.id, data: (key) => ({ layer: graphLayer(node.file_path), connections: degree.get(node.id) || 0, filePath: node.file_path }[key]) })), container), animate: false, fit: true, padding: 48 },
   });
   state.cy.on("tap", "node", (event) => focusGraphNode(event.target));
   state.cy.on("mouseover", "node", (event) => event.target.addClass("is-hover"));
@@ -231,6 +282,13 @@ function bindEvents() {
   document.querySelector("[data-action='graph-reset']")?.addEventListener("click", clearGraphFocus);
   document.querySelector("[data-action='graph-fit']")?.addEventListener("click", () => state.cy?.fit(undefined, 38));
   document.querySelector("[data-action='graph-layout']")?.addEventListener("click", () => runGraphLayout());
+  document.querySelectorAll("[data-action='graph-view']").forEach((button) => button.addEventListener("click", () => {
+    if (button.dataset.view === state.graphMode) return;
+    state.graphMode = button.dataset.view === "all" ? "all" : "connected";
+    state.cy?.destroy();
+    state.cy = null;
+    mountDependencyGraph();
+  }));
   document.querySelector("#graph-selection")?.addEventListener("click", (event) => { const button = event.target.closest("[data-action='graph-preview']"); if (button) location.hash = `source/${button.dataset.id}/${button.dataset.path}`; });
   document.querySelector("#chat-form")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const id = location.hash.split("/")[1]; const log = document.querySelector("#chat-log"); log.innerHTML += `<div class="message user">${escapeHtml(form.get("question"))}</div>${setLoading("Retrieving and synthesizing cited code…")}`; event.currentTarget.querySelector("button").disabled = true; try { const answer = await api(`/repos/${id}/query`, { method: "POST", body: JSON.stringify({ question: form.get("question"), top_k: 5 }) }); log.innerHTML = `<div class="message user">${escapeHtml(form.get("question"))}</div><div class="message"><p>${escapeHtml(answer.answer).replace(/\n/g, "<br />")}</p><p class="muted">${answer.model} · ${answer.retrieval_count} retrieved chunks · ${(answer.citation_coverage * 100).toFixed(0)}% citation coverage</p><div>${(answer.citations || []).map((citation) => `<span class="citation">${escapeHtml(citation.file_path)}:${citation.start_line}-${citation.end_line}</span>`).join("")}</div></div>`; } catch (error) { log.innerHTML += errorBox(error.message); } finally { event.currentTarget.querySelector("button").disabled = false; } });
 }
