@@ -28,7 +28,7 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
 logger = logging.getLogger("aise")
-EXPECTED_MIGRATION_REVISION = "007_query_token_usage"
+EXPECTED_MIGRATION_REVISION = "008_backfill_repository_stats"
 _migration_startup_error: str | None = None
 
 
