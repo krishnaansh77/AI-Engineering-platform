@@ -64,6 +64,11 @@ input:focus, textarea:focus { border-color: var(--blue); box-shadow: 0 0 0 3px r
 textarea { min-height: 140px; resize: vertical; }
 .alert { padding: 13px 15px; color: var(--red); background: #fff1f1; border: 1px solid #f4c9c9; border-radius: 10px; }
 .success { padding: 13px 15px; color: var(--green); background: #ebfaf4; border: 1px solid #bfe9d8; border-radius: 10px; }
+.indexing-notice { display: flex; align-items: flex-start; gap: 12px; margin: -8px 0 24px; padding: 15px 17px; color: #684400; background: #fff8e8; border: 1px solid #f1d28b; border-radius: 12px; }
+.indexing-notice strong { display: block; margin-bottom: 3px; color: #5b3d00; font-size: 13px; }
+.indexing-notice p { margin: 0; color: #866321; font-size: 13px; line-height: 1.45; }
+.indexing-pulse { flex: 0 0 auto; width: 11px; height: 11px; margin-top: 3px; border-radius: 50%; background: #e2a52e; box-shadow: 0 0 0 5px rgba(226, 165, 46, .16); animation: indexing-pulse 1.8s ease-in-out infinite; }
+@keyframes indexing-pulse { 0%, 100% { opacity: .55; transform: scale(.86); } 50% { opacity: 1; transform: scale(1); } }
 .empty { padding: 56px 20px; text-align: center; color: var(--muted); border: 1px dashed #cfd5e2; border-radius: 16px; background: #fff; }
 .section-head { display: flex; align-items: end; justify-content: space-between; gap: 15px; margin: 34px 0 15px; }
 .data-list { display: grid; gap: 10px; }
@@ -101,4 +106,4 @@ textarea { min-height: 140px; resize: vertical; }
 .footer { padding: 26px 5vw; color: var(--muted); text-align: center; font-size: 12px; }
 @media (max-width: 850px) { .hero { align-items: start; flex-direction: column; } .grid.stats, .grid.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nav a, .nav button { padding: 7px; font-size: 12px; } }
 @media (max-width: 540px) { .topbar { height: auto; min-height: 68px; padding: 13px 4vw; align-items: start; gap: 8px; flex-direction: column; } .nav { flex-wrap: wrap; } .main { padding: 30px 4vw 50px; } .grid.stats, .grid.cards { grid-template-columns: 1fr; } .card { padding: 18px; } .graph-head { align-items: start; flex-direction: column; } .graph-actions { justify-content: start; } .dependency-graph { min-height: 430px; } }
-@media (prefers-reduced-motion: reduce) { .dependency-graph * { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
+@media (prefers-reduced-motion: reduce) { .dependency-graph *, .indexing-pulse { transition-duration: 0ms !important; animation-duration: 0ms !important; } }

@@ -133,6 +133,10 @@ and should remain on Railway or an equivalent service.
 - [!] Railway rejected creating a separate Django service because the current
   Free plan reached its resource provision limit. Existing FastAPI, frontend,
   worker, Redis, and Postgres production services were left untouched.
+- [x] Added honest frontend indexing feedback: pending/indexing repositories
+  show a live status notice and refresh automatically every five seconds until
+  the repository reaches a terminal state. Connect and re-index actions now
+  expose a disabled in-progress state while their request is running.
 
 ### No-cost production decision
 
