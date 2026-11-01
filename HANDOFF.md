@@ -139,6 +139,10 @@ and should remain on Railway or an equivalent service.
   expose a disabled in-progress state while their request is running.
 - [x] Added repository-tour and latest-change panels to the redesigned
   repository screen, including direct source-preview actions for key files.
+- [x] Hardened the legacy repository response contract so older rows with
+  missing branch, metadata, or count defaults no longer turn `/repos/connect`
+  into a 500 response. Added a regression test; the containerized backend suite
+  passes with 64 tests passed and 4 skipped.
 
 ### No-cost production decision
 

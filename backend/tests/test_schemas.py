@@ -48,6 +48,27 @@ class TestSchemas(unittest.TestCase):
         self.assertEqual(res.status, "ready")
         self.assertEqual(res.file_count, 120)
 
+    def test_repository_response_normalizes_legacy_nullable_metadata(self):
+        now = datetime.now(timezone.utc)
+        res = RepositoryResponse(
+            id=uuid.uuid4(),
+            name="legacy-repository",
+            full_name="example/legacy-repository",
+            github_url="https://github.com/example/legacy-repository",
+            default_branch=None,
+            status="pending",
+            languages=None,
+            frameworks=None,
+            file_count=None,
+            chunk_count=None,
+            created_at=now,
+        )
+        self.assertEqual(res.default_branch, "main")
+        self.assertEqual(res.languages, [])
+        self.assertEqual(res.frameworks, [])
+        self.assertEqual(res.file_count, 0)
+        self.assertEqual(res.chunk_count, 0)
+
     def test_query_request_validation(self):
         req = QueryRequest(question="Where is auth?", top_k=8)
         self.assertEqual(req.question, "Where is auth?")

@@ -2,7 +2,7 @@
 from datetime import datetime
 from typing import List, Optional, Literal
 import uuid
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class ConnectRepoRequest(BaseModel):
@@ -95,6 +95,24 @@ class RepositoryResponse(BaseModel):
     last_indexed_at: Optional[datetime] = None
     created_at: datetime
     workspace_id: Optional[uuid.UUID] = None
+
+    @field_validator("default_branch", mode="before")
+    @classmethod
+    def normalize_default_branch(cls, value: str | None) -> str:
+        # Older repository rows may predate the non-null database default.
+        return value or "main"
+
+    @field_validator("languages", "frameworks", mode="before")
+    @classmethod
+    def normalize_metadata_lists(cls, value: list[str] | None) -> list[str]:
+        # Keep the response contract stable for rows created before JSON
+        # metadata defaults were enforced.
+        return value or []
+
+    @field_validator("file_count", "chunk_count", mode="before")
+    @classmethod
+    def normalize_counts(cls, value: int | None) -> int:
+        return value or 0
 
 
 class RepoStatsResponse(BaseModel):
