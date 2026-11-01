@@ -1,6 +1,6 @@
 const app = document.querySelector("#app");
 const API_BASE = window.__AISE_API_BASE__ || "/api";
-const state = { user: null, authMode: "login", loading: false, graphData: null, cy: null, refreshTimer: null };
+const state = { user: null, authMode: "login", loading: false, graphData: null, graphRepoId: null, cy: null, refreshTimer: null };
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 const token = () => localStorage.getItem("aise_access_token");
@@ -60,6 +60,7 @@ async function repoView(id) {
     const [repo, stats, files, graph, architecture, debt, quality, tests, history] = await Promise.all(["/repos/" + id, "/repos/" + id + "/stats", "/repos/" + id + "/files", "/repos/" + id + "/graph/files", "/repos/" + id + "/architecture", "/repos/" + id + "/technical-debt", "/repos/" + id + "/documentation/quality", "/repos/" + id + "/test-intelligence", "/repos/" + id + "/history"].map((path) => api(path).catch((error) => ({ unavailable: error.message }))));
     if (repo.unavailable) throw new Error(repo.unavailable);
     state.graphData = graph.unavailable ? null : graph;
+    state.graphRepoId = id;
     const unavailable = (data) => data?.unavailable ? `<p class="muted">Unavailable: ${escapeHtml(data.unavailable)}</p>` : null;
     const fileList = unavailable(files) || `<div class="data-list">${files.slice(0, 20).map((file) => `<div class="data-row"><span>${escapeHtml(file.file_path)}</span><button class="button secondary" style="min-height:30px;padding:0 9px;font-size:11px" data-action="preview-source" data-id="${id}" data-path="${encodeURIComponent(file.file_path)}" type="button">Preview</button></div>`).join("") || "<p class='muted'>No indexed files available yet.</p>"}</div>${files.length > 20 ? `<p class="muted" style="margin-top:12px">Showing 20 of ${files.length} files.</p>` : ""}`;
     const graphPanel = unavailable(graph) || `<section class="card graph-card" aria-labelledby="dependency-graph-title"><div class="graph-head"><div><p class="eyebrow">Focus + context map</p><h2 id="dependency-graph-title">Dependency graph</h2><p class="muted">Select a file to trace its imports and dependants. The indexed file list remains the complete, keyboard-friendly view.</p></div><div class="graph-actions"><button class="button secondary" data-action="graph-reset" type="button">Clear focus</button><button class="button secondary" data-action="graph-fit" type="button">Fit graph</button><button class="button secondary" data-action="graph-layout" type="button">Re-layout</button></div></div><div id="dependency-graph" class="dependency-graph" role="img" aria-label="Interactive dependency graph of indexed files"></div><div class="graph-footer"><div class="graph-legend" aria-label="Graph legend"><span><i class="legend-dot backend"></i>Backend</span><span><i class="legend-dot frontend"></i>Frontend</span><span><i class="legend-dot tests"></i>Tests</span><span><i class="legend-dot configuration"></i>Config/docs</span><span><i class="legend-line outgoing"></i>Imports</span><span><i class="legend-line incoming"></i>Imported by</span></div><div id="graph-selection" class="graph-selection" role="status" aria-live="polite">Select a node to inspect its direct relationships.</div></div></section>`;
@@ -101,7 +102,7 @@ function describeGraphNode(node) {
   const importedBy = node.incomers("edge").length;
   const selection = document.querySelector("#graph-selection");
   if (!selection) return;
-  selection.innerHTML = `<strong>${escapeHtml(data.filePath)}</strong><span>${imports} imports · ${importedBy} dependants · ${escapeHtml(data.layer)}</span>`;
+  selection.innerHTML = `<strong>${escapeHtml(data.filePath)}</strong><span>${imports} imports · ${importedBy} dependants · ${escapeHtml(data.layer)} · ${data.symbols.length} symbols</span>${state.graphRepoId ? `<button class="button secondary" data-action="graph-preview" data-id="${escapeHtml(state.graphRepoId)}" data-path="${encodeURIComponent(data.filePath)}" type="button">Preview file</button>` : ""}`;
 }
 
 function focusGraphNode(node) {
@@ -195,6 +196,7 @@ async function render() {
   state.cy?.destroy();
   state.cy = null;
   state.graphData = null;
+  state.graphRepoId = null;
   app.innerHTML = setLoading();
   if (hash === "auth") app.innerHTML = authView();
   else if (hash === "connect") app.innerHTML = connectView();
@@ -226,6 +228,7 @@ function bindEvents() {
   document.querySelector("[data-action='graph-reset']")?.addEventListener("click", clearGraphFocus);
   document.querySelector("[data-action='graph-fit']")?.addEventListener("click", () => state.cy?.fit(undefined, 38));
   document.querySelector("[data-action='graph-layout']")?.addEventListener("click", () => runGraphLayout());
+  document.querySelector("#graph-selection")?.addEventListener("click", (event) => { const button = event.target.closest("[data-action='graph-preview']"); if (button) location.hash = `source/${button.dataset.id}/${button.dataset.path}`; });
   document.querySelector("#chat-form")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const id = location.hash.split("/")[1]; const log = document.querySelector("#chat-log"); log.innerHTML += `<div class="message user">${escapeHtml(form.get("question"))}</div>${setLoading("Retrieving and synthesizing cited code…")}`; event.currentTarget.querySelector("button").disabled = true; try { const answer = await api(`/repos/${id}/query`, { method: "POST", body: JSON.stringify({ question: form.get("question"), top_k: 5 }) }); log.innerHTML = `<div class="message user">${escapeHtml(form.get("question"))}</div><div class="message"><p>${escapeHtml(answer.answer).replace(/\n/g, "<br />")}</p><p class="muted">${answer.model} · ${answer.retrieval_count} retrieved chunks · ${(answer.citation_coverage * 100).toFixed(0)}% citation coverage</p><div>${(answer.citations || []).map((citation) => `<span class="citation">${escapeHtml(citation.file_path)}:${citation.start_line}-${citation.end_line}</span>`).join("")}</div></div>`; } catch (error) { log.innerHTML += errorBox(error.message); } finally { event.currentTarget.querySelector("button").disabled = false; } });
 }
 
