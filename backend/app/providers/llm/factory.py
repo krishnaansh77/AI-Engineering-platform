@@ -5,14 +5,14 @@ from app.providers.llm.base import LLMProvider
 
 
 @lru_cache()
-def get_llm_provider() -> LLMProvider:
+def get_llm_provider(provider_name: str | None = None) -> LLMProvider:
     """Return a singleton LLM provider based on the LLM_PROVIDER env var.
 
     Currently supported:
       - "openai" → OpenAIProvider (default)
       - "anthropic" → AnthropicProvider (Phase 4)
     """
-    provider = settings.LLM_PROVIDER.lower()
+    provider = (provider_name or settings.LLM_PROVIDER).lower()
     if provider == "openai":
         from app.providers.llm.openai_provider import OpenAIProvider
         return OpenAIProvider()

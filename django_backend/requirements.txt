@@ -1,0 +1,10 @@
+Django>=5.1,<6
+gunicorn>=23,<24
+djangorestframework>=3.15,<4
+httpx>=0.28,<1
+django-cors-headers>=4.4,<5
+dj-database-url>=2.2,<3
+psycopg[binary]>=3.2,<4
+python-jose[cryptography]>=3.3,<4
+celery[redis]>=5.4,<6
+GitPython>=3.1,<4

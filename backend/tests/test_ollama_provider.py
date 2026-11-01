@@ -17,3 +17,7 @@ class TestOllamaProvider(unittest.TestCase):
         with patch("app.providers.llm.factory.settings.LLM_PROVIDER", "ollama"):
             provider = get_llm_provider()
         self.assertIsInstance(provider, OllamaProvider)
+
+    def test_factory_can_select_fallback_provider_explicitly(self):
+        provider = get_llm_provider("ollama")
+        self.assertIsInstance(provider, OllamaProvider)

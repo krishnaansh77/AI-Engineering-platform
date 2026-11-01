@@ -23,6 +23,7 @@ from app.services.retrieval_service import RetrievalService
 from app.services.query_cache import build_query_cache_key
 from app.services.evaluation_service import aggregate_scores, score_retrieval
 from app.services.usage_service import consume_llm_request, estimate_llm_cost
+from app.providers.llm.factory import get_llm_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["query"], dependencies=[Depends(get_current_user), Depends(require_repository_access)])
@@ -124,19 +125,25 @@ async def query_repository(
         # The local synthesizer is grounded in the same retrieved chunks and
         # makes no external API call. It is deliberately explicit in the
         # response model so users know when AI generation was unavailable.
-        if settings.LLM_FALLBACK_PROVIDER.lower() not in {"mock", "local"}:
+        fallback_provider = settings.LLM_FALLBACK_PROVIDER.lower()
+        if fallback_provider not in {"mock", "local", "ollama"}:
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail=error_detail("LLM_PROVIDER_UNAVAILABLE", "The AI provider is temporarily unavailable or over quota. Please retry later or check the configured provider limits.", True),
             ) from exc
         logger.warning("Using local grounded fallback after LLM provider failure")
-        from app.providers.llm.mock_llm import MockLLMProvider
-
-        fallback_answer = await LLMService(provider=MockLLMProvider()).answer_query(
-            query=payload.question,
-            retrieved_chunks=retrieved_chunks,
-            repo_name=repo.full_name,
-        )
+        try:
+            fallback_answer = await LLMService(provider=get_llm_provider(fallback_provider)).answer_query(
+                query=payload.question,
+                retrieved_chunks=retrieved_chunks,
+                repo_name=repo.full_name,
+            )
+        except Exception as fallback_exc:
+            logger.exception("Configured fallback provider failed for repository %s", repo_id)
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=error_detail("LLM_PROVIDER_UNAVAILABLE", "The configured AI provider and fallback are unavailable. Please retry later or check provider settings.", True),
+            ) from fallback_exc
         query_answer = fallback_answer
     llm_latency_ms = (time.perf_counter() - llm_started) * 1000
 

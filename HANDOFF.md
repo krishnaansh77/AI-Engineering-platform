@@ -1,0 +1,229 @@
+# AISE Platform — Continuation Handoff
+
+This file is the source of truth for continuing the redesign if the account,
+model, or Codex session changes. Update it after every meaningful milestone.
+
+## User-approved direction
+
+- Redesign the product so every visible screen reflects a real working feature.
+- Replace the TypeScript frontend with JavaScript, HTML, and CSS.
+- Replace the FastAPI API layer with Django/Django REST Framework.
+- Deploy the frontend on Vercel.
+- Keep production available during the migration; do not remove the current
+  Railway deployment until the replacement passes the acceptance checks.
+- Preserve the existing Python analysis services where possible instead of
+  rewriting proven indexing, parsing, retrieval, GitHub, and LLM logic.
+- Make the repository easy for another AI to resume without chat history.
+
+## Current repository state
+
+- Workspace: `/Users/ayushpatel/AI Software Engineering Intelligence Platform`
+- Git branch: `master`
+- Current production frontend:
+  `https://zoological-mercy-production-8922.up.railway.app`
+- Current production backend:
+  `https://ai-engineering-platform-production.up.railway.app`
+- Existing deployment services: frontend, FastAPI backend, Celery worker,
+  PostgreSQL/pgvector, and Redis on Railway.
+- Local Docker verification is currently blocked because Docker Desktop is not
+  running on the development machine.
+- Vercel MCP/deployment connection is not currently available in Codex.
+- Django compatibility service added under `django_backend/`. It exposes
+  `/health`, forwards uncovered `/api/*` routes to FastAPI, and now owns the
+  migrated auth, workspace, repository, structural-intelligence, and Git
+  intelligence routes. It is intentionally not wired into production yet.
+- There are pre-existing uncommitted changes in:
+  - `PROJECT_PLAN.md`
+  - `backend/app/api/query.py`
+  - `backend/app/providers/llm/factory.py`
+  - `backend/tests/test_ollama_provider.py`
+
+Do not discard those changes. Inspect them before committing or rebasing.
+
+## Target architecture
+
+```text
+Vercel
+  vanilla JS + HTML + CSS frontend
+          |
+          | same-origin API proxy / HTTPS
+          v
+Railway
+  Django + Django REST Framework API
+  Celery worker
+  PostgreSQL + pgvector
+  Redis
+          |
+          v
+  Existing Python services for parsing, indexing, retrieval, GitHub,
+  architecture, history, issue intelligence, documentation, and LLM providers
+```
+
+Vercel should host the browser application only. The Django API, Celery,
+database, Redis, and repository workspace require a server/worker environment
+and should remain on Railway or an equivalent service.
+
+## Migration strategy
+
+1. Inventory the existing API contract and map every current frontend screen to
+   a real backend capability.
+2. Add Django as a compatibility API alongside FastAPI; do not remove FastAPI
+   yet.
+3. Reuse existing service modules and database schema wherever practical.
+4. Build the vanilla JS/HTML/CSS frontend against the compatibility contract.
+5. Add automated API and browser smoke tests for every screen and critical
+   action.
+6. Deploy the new frontend to a Vercel preview and point it at the Django
+   staging API.
+7. Cut production over only after the acceptance checklist below passes.
+8. Retire FastAPI only after the Django API has parity and production has been
+   stable.
+
+### Completed migration slices
+
+- [x] Added continuation handoff and migration source of truth.
+- [x] Added Django compatibility service scaffold with health endpoint and
+  restricted API proxy.
+- [x] Confirmed the scaffold is syntactically valid with Python compilation.
+- [x] Added an opt-in `django` Docker Compose profile and Django Dockerfile;
+  the existing default Compose stack is unchanged.
+- [x] Migrated read-only repository list/detail routes to native Django using
+  unmanaged models against the existing PostgreSQL schema, including bearer
+  token validation and workspace visibility filtering.
+- [x] Added the first vanilla JavaScript/HTML/CSS redesign under
+  `frontend_v2/`, with functional auth, dashboard, repository connect/detail,
+  re-index, chat, account/usage, and documentation routes backed by the API.
+- [x] Added working workspace creation and owner/admin rename controls to the
+  redesigned account screen.
+- [x] Migrated registration, login, and current-user identity routes to native
+  Django, preserving the existing PBKDF2 password format and JWT claims.
+- [x] Migrated authenticated workspace listing to native Django for the account
+  screen.
+- [x] Added native Django workspace creation and owner/admin rename endpoints;
+  member and invitation management remain to be migrated.
+- [x] Added native Django workspace invitations, revocation, acceptance, member
+  listing, role changes, and member removal with hashed seven-day tokens and
+  owner/admin safeguards.
+- [x] Added native Django repository connect, re-index, and delete routes with
+  workspace visibility and mutation authorization; indexing is dispatched to
+  the existing Celery task through Redis.
+- [x] Added redesigned frontend controls for repository re-index and guarded
+  deletion.
+- [x] Migrated repository statistics, indexed file inventory, and bounded
+  secure source previews to native Django; the Django service now mounts the
+  shared repository volume in Compose.
+- [x] Wired the redesigned repository page to show indexed files and open
+  bounded source previews through the native Django routes.
+- [x] Added native Django structural intelligence services and routes for file
+  dependency graphs, architecture layers, test relationships, repository tour,
+  technical-debt signals, and documentation quality.
+- [x] Migrated Git history, latest-change analysis, commit analysis, and base/
+  head comparison to native Django using the shared clone volume and GitPython.
+- [x] Added the first working dependency graph visualization to `frontend_v2/`:
+  Cytoscape.js focus-plus-context rendering, one-time animated CoSE layout,
+  direct import/dependant tracing, layer-aware node shapes, fit/re-layout/clear
+  controls, and reduced-motion behavior. Design rationale and research sources
+  are recorded in `docs/graph-visualization.md`.
+- [x] Added Vercel same-origin API proxy wiring under `frontend_v2/api/`.
+  Configure the non-secret `DJANGO_API_URL` Vercel environment variable to the
+  Railway Django origin; the browser continues to call `/api/*` and tokens are
+  forwarded server-side by the proxy.
+
+### Immediate next slice
+
+- [x] Add Django contract tests for health, auth forwarding, JSON forwarding,
+  timeout, and unavailable-backend errors.
+- [x] Add a Django service Dockerfile and Compose profile without changing the
+  current default production path. *(See `docker-compose.yml`.)*
+- [x] Migrate one read-only repository endpoint from proxy to Django REST
+  Framework. Native Django list/detail routes are in place; database-backed
+  response parity verification remains.
+- [x] Migrate the core authentication endpoints to native Django. Database and
+  production parity verification remain.
+- [x] Migrate authenticated workspace listing to native Django. Workspace
+  mutation and invitation routes remain.
+- [x] Migrate workspace creation and rename to native Django. Member and
+  invitation management remain.
+- [x] Migrate workspace invitations and member management to native Django.
+  Database-backed behavior still needs integration verification.
+- [x] Migrate repository connect, re-index, and delete to native Django. Celery
+  and database integration verification remain.
+- [x] Migrate repository stats, file inventory, and source preview to native
+  Django. Database-backed verification remains.
+- [x] Migrate structural intelligence summaries to native Django. Database-backed
+  graph parity verification remains.
+- [x] Migrate Git history and commit comparison to native Django. Clone-volume
+  integration verification remains.
+- [x] Start the frontend shell conversion to JavaScript/HTML/CSS while keeping
+  the same API contract. Initial auth, dashboard, repository, chat, account,
+  and documentation routes are in `frontend_v2/`; feature parity and browser
+  verification remain.
+
+## Feature parity checklist
+
+- [ ] Authentication: register, login, logout/session expiry, current user
+- [ ] Workspace creation, switching, invitations, roles, member removal
+- [ ] Repository connect, list, detail, re-index, delete
+- [ ] Indexing progress and error recovery
+- [ ] Codebase chat with citations and feedback
+- [ ] Semantic/keyword code search
+- [ ] Dependency graph and impact analysis
+- [ ] Architecture explorer
+- [ ] Git history and commit analysis
+- [ ] PR/branch comparison
+- [ ] GitHub issue listing and issue analysis
+- [ ] Repository tour
+- [ ] Documentation inventory and quality signals
+- [ ] Documentation preview, download, and guarded GitHub save
+- [ ] Technical debt and test intelligence
+- [ ] Optional secret scan with redaction
+- [ ] RAG evaluation, latency, citation, and usage metrics
+- [ ] Markdown repository report export
+- [ ] Accessible loading, error, empty, disabled, and success states
+- [ ] Responsive layout for desktop and narrow screens
+
+## Required secrets and external access
+
+No secrets are needed to begin the code migration. Do not paste secrets into
+chat or commit them. When deployment work begins, configure them through the
+hosting provider's secret UI.
+
+Likely required values:
+
+- `SECRET_KEY`
+- `DATABASE_URL` for PostgreSQL/pgvector
+- `REDIS_URL`
+- One LLM provider key: Gemini, OpenAI, or another supported provider
+- An embedding provider key/model configuration
+- `GITHUB_PAT` for private repositories or higher API limits, or GitHub App
+  credentials for the preferred production flow
+- Django allowed hosts, CORS/CSRF origins, and frontend API base URL
+- Vercel project/team access when the Vercel connector is available
+- `DJANGO_API_URL` in Vercel, set to the Railway Django service origin without
+  `/api` appended
+
+## Definition of done
+
+- The new frontend is deployed on Vercel.
+- Django API and workers are deployed and healthy on Railway.
+- Every feature in the parity checklist has a working UI path or is explicitly
+  marked unavailable with a truthful explanation.
+- No screen contains placeholder buttons or fake success states.
+- Backend tests, frontend build, API smoke tests, and browser smoke tests pass.
+- Production health checks, authentication, repository indexing, chat, and one
+  end-to-end intelligence workflow are verified after deployment.
+- This handoff file and `PROJECT_PLAN.md` describe the actual state, not an
+  aspirational roadmap.
+
+## Resume instructions for another AI
+
+1. Read this file, `PROJECT_PLAN.md`, `README.md`, and `git status`.
+2. Preserve unrelated or pre-existing user changes.
+3. Inspect the latest commit and update this file before making a large
+   architectural change.
+4. Run the smallest relevant tests before and after each migration slice.
+5. Never deploy uncommitted redesign work without explicit user approval.
+6. If an API key, Vercel team, GitHub installation, or database is required,
+   ask the user for access instructions—not the secret value in chat.
+
+*Last updated: 2026-11-02*

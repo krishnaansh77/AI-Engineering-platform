@@ -93,6 +93,32 @@ services:
       - NEXT_PUBLIC_API_URL=http://localhost:8000
     command: npm run dev
 
+  # Incremental Django migration service. It is opt-in so the verified
+  # FastAPI stack remains unchanged until the compatibility layer is tested.
+  django_api:
+    profiles: ["django"]
+    build:
+      context: ./django_backend
+      dockerfile: Dockerfile
+    container_name: aise_django_api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - repos_data:/repos
+    environment:
+      - LEGACY_API_URL=http://backend:8000
+      - DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1,django_api
+    ports:
+      - "8100:8100"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8100/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
   repos_data:
