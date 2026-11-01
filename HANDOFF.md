@@ -29,18 +29,14 @@ model, or Codex session changes. Update it after every meaningful milestone.
   PostgreSQL/pgvector, and Redis on Railway.
 - Local Docker verification is currently blocked because Docker Desktop is not
   running on the development machine.
-- Vercel MCP/deployment connection is not currently available in Codex.
+- The current Vercel production alias is live and verified:
+  `https://ai-engineering-platform-frontendv2-topaz.vercel.app`.
 - Django compatibility service added under `django_backend/`. It exposes
   `/health`, forwards uncovered `/api/*` routes to FastAPI, and now owns the
   migrated auth, workspace, repository, structural-intelligence, and Git
   intelligence routes. It is intentionally not wired into production yet.
-- There are pre-existing uncommitted changes in:
-  - `PROJECT_PLAN.md`
-  - `backend/app/api/query.py`
-  - `backend/app/providers/llm/factory.py`
-  - `backend/tests/test_ollama_provider.py`
-
-Do not discard those changes. Inspect them before committing or rebasing.
+- The migration and deployment changes are committed on `master`. Preserve
+  unrelated user changes if they appear in a later working tree.
 
 ## Target architecture
 
@@ -137,6 +133,35 @@ and should remain on Railway or an equivalent service.
 - [!] Railway rejected creating a separate Django service because the current
   Free plan reached its resource provision limit. Existing FastAPI, frontend,
   worker, Redis, and Postgres production services were left untouched.
+
+### No-cost production decision
+
+- Keep the Vercel frontend on the current free deployment and keep the existing
+  Railway FastAPI service as the production API. This is the stable, verified
+  path and does not require a plan upgrade or payment.
+- Do not delete or repurpose an existing Railway service just to make room for
+  Django; that could take down the working production API, worker, database, or
+  Redis service.
+- The native Django compatibility layer remains in the repository and is ready
+  for a future free service slot. When a free slot is available, deploy
+  `django_backend/`, give it a public domain, verify its health and contract
+  checks, then change the Vercel `/api/:path*` destination in
+  `frontend_v2/vercel.json` to `https://<django-origin>/api/:path*`.
+- No paid upgrade, paid add-on, custom domain, or secret was added as part of
+  this deployment.
+
+### Verification recorded on 2026-11-02
+
+- Vercel root: HTTP 200.
+- Vercel `/api/health`: HTTP 200; database and Redis healthy.
+- Vercel `/api/auth/me`: HTTP 401 with the expected authentication error.
+- Vercel `/api/repos`: HTTP 401 with the expected authentication error.
+- `django_backend/` Python compilation: passed.
+- Frontend JavaScript syntax check: passed.
+- Full backend pytest was not run on this host because its Python environment
+  does not currently have the project dependencies (`fastapi`, `redis`,
+  `rank_bm25`) installed. CI remains the authoritative dependency-complete
+  test environment.
 
 ### Immediate next slice
 

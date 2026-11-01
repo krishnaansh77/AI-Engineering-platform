@@ -11,7 +11,8 @@ This file is the practical handoff document for the project. It records what is 
 - Repository: `https://github.com/krishnaansh77/AI-Engineering-platform.git`
 - Local workspace: `/Users/ayushpatel/AI Software Engineering Intelligence Platform`
 - Railway deployment: backend, PostgreSQL, Redis, Celery worker, and frontend are all **Online** in the production environment.
-- Live frontend: `https://zoological-mercy-production-8922.up.railway.app`
+- Live legacy frontend: `https://zoological-mercy-production-8922.up.railway.app`
+- Live redesigned frontend: `https://ai-engineering-platform-frontendv2-topaz.vercel.app`
 - Live backend: `https://ai-engineering-platform-production.up.railway.app`
 - Latest production verification: Railway frontend deployment `07eed5b` is active; the public dashboard and repository detail page show the Phase 3 label and expose accessible headings, labels, navigation, buttons, form controls, and status regions.
 
@@ -180,7 +181,8 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
   the live API rewrite returns the expected unauthenticated response. A new
   Railway Django service could not be provisioned because the current Free
   plan reached its resource limit; the existing production services remain
-  unchanged.
+  unchanged. The no-cost production path therefore keeps the verified FastAPI
+  API behind the Vercel rewrite until a free Railway service slot is available.
 
 - Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migrations `003_users` and `004_repository_owners`, repository ownership, and a frontend account screen. Repository and query APIs now require authentication; authenticated members can connect, re-index, and delete their own repositories; admins/owners retain global mutation access. The frontend redirects unauthenticated API requests to `/auth`. Ownership migration is applied locally and Alembic is at head.
 - Authentication hardening — complete: `/auth/*` requests now use a dedicated low per-minute Redis rate limit, with regression coverage for login throttling and existing API limits.
