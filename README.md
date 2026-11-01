@@ -30,8 +30,8 @@ Answer + Source Citations (file · function · lines)
 |-------|----------|--------|
 | **Phase 1** | GitHub integration · Code parsing · Hybrid RAG · Q&A · Citations | ✅ Complete |
 | **Phase 2** | Dependency graph · Architecture explorer · Git history · Change impact | ✅ Complete |
-| **Phase 3** | PR comparison · Issue intelligence · RAG evaluation · Documentation previews · Quality signals | 🟡 In progress |
-| **Phase 4** | RBAC · Multi-repo · GitHub App · Agents · Observability · Local LLM | 🔲 Future |
+| **Phase 3** | PR comparison · Issue intelligence · RAG evaluation · Documentation previews · Quality signals | ✅ Complete |
+| **Phase 4** | RBAC · Multi-repo · GitHub App · Agents · Observability · Local LLM | 🟡 In progress |
 
 ---
 
@@ -97,7 +97,8 @@ docker compose exec redis redis-cli ping
 │   │   └── workers/        ← Celery async tasks
 │   ├── alembic/            ← DB migrations
 │   └── requirements.txt
-├── frontend/               ← Next.js application
+├── frontend_v2/            ← Vanilla JavaScript/HTML/CSS production frontend
+├── frontend/               ← Legacy Next.js fallback application
 │   └── src/
 │       ├── app/            ← App Router pages
 │       ├── components/     ← React components

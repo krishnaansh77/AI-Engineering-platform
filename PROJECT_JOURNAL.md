@@ -14,14 +14,17 @@
 **Started**: 2026-09-27  
 **Current Phase**: Phase 4 (Production & Advanced Capabilities) — In Progress
 
-**Current verified state (2026-10-08)**:
+**Current verified state (2026-11-02)**:
 
 - Phases 1–3 feature work is implemented and the Phase 4 production foundation is active.
-- Railway hosts the backend, PostgreSQL, Redis, Celery worker, and Next.js frontend.
+- Railway hosts the FastAPI backend, PostgreSQL, Redis, and Celery worker. The
+  redesigned vanilla frontend is deployed on Vercel; the legacy Next.js
+  frontend remains available as a fallback.
 - Gemini is the configured production LLM and embedding provider, with Redis-backed daily request limits and answer caching.
 - GitHub App authentication is configured for `AI-Engineering-platform`; the backend uses short-lived installation tokens when App settings are present.
 - Authentication, RBAC, workspace membership/invitations, repository ownership, rate limits, health checks, query token metrics, and configurable cost estimates are implemented.
-- Latest verified backend baseline: `60 passed, 4 skipped`; frontend production build passes.
+- Latest verified backend baseline: `65 passed, 4 skipped`; frontend JavaScript
+  syntax and local browser smoke checks pass.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
@@ -30,10 +33,10 @@
 
 | Phase | Name | Status | Features |
 |-------|------|--------|----------|
-| **Phase 1** | Foundation & Core RAG | 🚧 In Progress | GitHub integration, AST code parsing, hybrid RAG, Q&A, source citations |
-| **Phase 2** | Software Engineering Intelligence | 🔲 Planned | Architecture explorer, dependency graph, Git history, change impact analysis |
-| **Phase 3** | Developer Productivity | 🔲 Planned | PR analysis, issue intelligence, test intelligence, automated documentation |
-| **Phase 4** | Production & Advanced | 🔲 Planned | Multi-repo, autonomous agents, RAG evaluation, RBAC, observability, local LLM |
+| **Phase 1** | Foundation & Core RAG | ✅ Complete | GitHub integration, AST code parsing, hybrid RAG, Q&A, source citations |
+| **Phase 2** | Software Engineering Intelligence | ✅ Complete | Architecture explorer, dependency graph, Git history, change impact analysis |
+| **Phase 3** | Developer Productivity | ✅ Complete | PR analysis, issue intelligence, test intelligence, automated documentation |
+| **Phase 4** | Production & Advanced | 🚧 In Progress | Multi-repo, autonomous agents, RAG evaluation, RBAC, observability, local LLM |
 
 ---
 
@@ -113,7 +116,7 @@
 | **Fusion / Rerank** | Reciprocal Rank Fusion (RRF, k=60) | ✅ Implemented |
 | **Task Queue** | Celery + Redis | ✅ Implemented |
 | **Git Integration** | GitPython + GitHub Webhooks | ✅ Implemented |
-| **Frontend** | Next.js 14 + TypeScript + Tailwind CSS | ✅ Implemented |
+| **Frontend** | Vanilla JavaScript + HTML + CSS (`frontend_v2`) | ✅ Production |
 
 ---
 

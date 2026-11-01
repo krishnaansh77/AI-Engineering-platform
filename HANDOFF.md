@@ -27,8 +27,9 @@ model, or Codex session changes. Update it after every meaningful milestone.
   `https://ai-engineering-platform-frontendv2-topaz.vercel.app`
 - Existing deployment services: frontend, FastAPI backend, Celery worker,
   PostgreSQL/pgvector, and Redis on Railway.
-- Local Docker verification is currently blocked because Docker Desktop is not
-  running on the development machine.
+- Local Docker stack is running with FastAPI, PostgreSQL/pgvector, Redis, and
+  Celery worker. The redesigned frontend is served locally from
+  `frontend_v2/` at `http://localhost:3000` for browser smoke testing.
 - The current Vercel production alias is live and verified:
   `https://ai-engineering-platform-frontendv2-topaz.vercel.app`.
 - Django compatibility service added under `django_backend/`. It exposes
@@ -142,7 +143,14 @@ and should remain on Railway or an equivalent service.
 - [x] Hardened the legacy repository response contract so older rows with
   missing branch, metadata, or count defaults no longer turn `/repos/connect`
   into a 500 response. Added a regression test; the containerized backend suite
-  passes with 64 tests passed and 4 skipped.
+  passed with 64 tests passed and 4 skipped before the graph regression.
+- [x] Added Alembic migration `008_backfill_repository_stats` to repair legacy
+  repository counters and indexing timestamps from `source_files` and
+  `code_chunks`; the local Eternixx1 record now reports 26 files and 101 chunks.
+- [x] Fixed dependency-graph resolution for common Next.js `@/*` and `~/*`
+  aliases and improved frontend layer classification for `app/`, `components/`,
+  `pages/`, `hooks/`, and `lib/`; the local Eternixx1 graph now resolves 15
+  relationships instead of zero.
 
 ### No-cost production decision
 
@@ -168,10 +176,10 @@ and should remain on Railway or an equivalent service.
 - Vercel `/api/repos`: HTTP 401 with the expected authentication error.
 - `django_backend/` Python compilation: passed.
 - Frontend JavaScript syntax check: passed.
-- Full backend pytest was not run on this host because its Python environment
-  does not currently have the project dependencies (`fastapi`, `redis`,
-  `rank_bm25`) installed. CI remains the authoritative dependency-complete
-  test environment.
+- Full containerized backend pytest: `65 passed, 4 skipped`.
+- Local frontend JavaScript syntax check: passed.
+- Local browser smoke checks: authenticated dashboard, repository detail,
+  corrected stats, dependency graph, source preview, and chat route loaded.
 
 ### Immediate next slice
 

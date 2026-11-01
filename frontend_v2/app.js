@@ -77,7 +77,7 @@ function graphLayer(filePath) {
   const parts = new Set(normalized.split("/"));
   const name = normalized.split("/").pop() || "";
   if (name.includes("test") || parts.has("tests") || parts.has("__tests__")) return "tests";
-  if (parts.has("frontend") || normalized.startsWith("src/")) return "frontend";
+  if (parts.has("frontend") || normalized.startsWith("src/") || [...parts].some((part) => ["app", "components", "pages", "hooks", "lib"].includes(part)) && /\.(js|jsx|ts|tsx)$/.test(name)) return "frontend";
   if (parts.has("backend") || parts.has("api") || parts.has("services")) return "backend";
   if (name.endsWith(".md") || name.endsWith(".mdx") || ["package.json", "pyproject.toml", "dockerfile", "docker-compose.yml"].includes(name)) return "configuration";
   return "other";

@@ -19,8 +19,18 @@ class TestDependencyGraphService(unittest.TestCase):
         )
         self.assertEqual(resolved, "frontend/src/lib/api.ts")
 
+    def test_resolves_nextjs_root_alias_import(self):
+        known = {"components/scene-error-boundary.tsx"}
+        resolved = DependencyGraphService.resolve_import(
+            "components/signup/dna-helix-scene.tsx",
+            "import { SceneErrorBoundary } from '@/components/scene-error-boundary'",
+            known,
+        )
+        self.assertEqual(resolved, "components/scene-error-boundary.tsx")
+
     def test_classifies_repository_layers(self):
         self.assertEqual(DependencyGraphService.classify_layer("frontend/src/app/page.tsx"), "frontend")
+        self.assertEqual(DependencyGraphService.classify_layer("app/dashboard/page.tsx"), "frontend")
         self.assertEqual(DependencyGraphService.classify_layer("backend/app/api/repos.py"), "backend")
         self.assertEqual(DependencyGraphService.classify_layer("backend/tests/test_graph.py"), "tests")
 

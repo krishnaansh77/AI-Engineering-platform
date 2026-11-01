@@ -6,8 +6,10 @@ This file is the practical handoff document for the project. It records what is 
 
 - Phase 1 — Foundation & Core RAG: **complete**
 - Phase 2 — Repository Intelligence: **complete**
-- Phase 3 — Developer Productivity: **in progress**
-- Latest verified baseline: **42 backend tests passing** and the Next.js production build passing
+- Phase 3 — Developer Productivity: **complete**
+- Phase 4 — Production & Advanced Capabilities: **in progress**
+- Latest verified baseline: **65 backend tests passing, 4 skipped**; the
+  redesigned frontend JavaScript syntax and local browser smoke checks pass.
 - Repository: `https://github.com/krishnaansh77/AI-Engineering-platform.git`
 - Local workspace: `/Users/ayushpatel/AI Software Engineering Intelligence Platform`
 - Railway deployment: backend, PostgreSQL, Redis, Celery worker, and frontend are all **Online** in the production environment.
@@ -16,7 +18,10 @@ This file is the practical handoff document for the project. It records what is 
 - Live backend: `https://ai-engineering-platform-production.up.railway.app`
 - Latest production verification: Railway frontend deployment `07eed5b` is active; the public dashboard and repository detail page show the Phase 3 label and expose accessible headings, labels, navigation, buttons, form controls, and status regions.
 
-The project is running with Docker Compose: PostgreSQL + pgvector, Redis, FastAPI, Celery worker, and Next.js.
+The project is running with Docker Compose: PostgreSQL + pgvector, Redis,
+FastAPI, and Celery worker. The redesigned vanilla frontend runs locally at
+`http://localhost:3000` and is deployed on Vercel; the legacy Next.js service
+remains available as a fallback.
 
 ## What has been built
 

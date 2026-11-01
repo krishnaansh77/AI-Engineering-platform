@@ -230,7 +230,12 @@ class DependencyGraphService:
         name = normalized.rsplit("/", 1)[-1]
         if "test" in name or "tests" in parts or "__tests__" in parts:
             return "tests"
-        if "frontend" in parts or normalized.startswith("src/"):
+        if (
+            "frontend" in parts
+            or normalized.startswith("src/")
+            or (parts & {"app", "components", "pages", "hooks", "lib"})
+            and name.endswith((".js", ".jsx", ".ts", ".tsx"))
+        ):
             return "frontend"
         if "backend" in parts or "api" in parts or "services" in parts:
             return "backend"
@@ -297,6 +302,13 @@ class DependencyGraphService:
                 candidates = [posixpath.normpath(str(base.joinpath(module)))]
             else:
                 candidates = [module]
+
+        # Next.js/TypeScript repositories commonly map `@/*` to the project
+        # root. Treat that alias as a repository-relative import so the graph
+        # does not silently lose most frontend relationships.
+        if module.startswith(("@/", "~/")):
+            module = module[2:]
+            candidates = [module]
 
         # Python packages are often rooted below a repository directory such
         # as backend/ or frontend/. Try those roots for absolute module names.
