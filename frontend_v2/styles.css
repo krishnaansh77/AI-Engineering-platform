@@ -74,6 +74,8 @@ textarea { min-height: 140px; resize: vertical; }
 .data-list { display: grid; gap: 10px; }
 .data-row { display: flex; justify-content: space-between; gap: 18px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
 .data-row:last-child { border-bottom: 0; }
+.data-row small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; }
+.compact-button { min-height: 30px; padding: 0 9px; font-size: 11px; }
 .graph-card { grid-column: 1 / -1; overflow: hidden; }
 .graph-head { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; }
 .graph-head h2 { margin-bottom: 7px; }

@@ -137,6 +137,8 @@ and should remain on Railway or an equivalent service.
   show a live status notice and refresh automatically every five seconds until
   the repository reaches a terminal state. Connect and re-index actions now
   expose a disabled in-progress state while their request is running.
+- [x] Added repository-tour and latest-change panels to the redesigned
+  repository screen, including direct source-preview actions for key files.
 
 ### No-cost production decision
 
