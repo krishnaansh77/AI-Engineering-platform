@@ -25,6 +25,10 @@
 - Authentication, RBAC, workspace membership/invitations, repository ownership, rate limits, health checks, query token metrics, and configurable cost estimates are implemented.
 - Latest verified backend baseline: `65 passed, 4 skipped`; frontend JavaScript
   syntax and local browser smoke checks pass.
+- The dependency graph UI was simplified into a deterministic architecture map:
+  connected files are shown by default in stable layer columns, isolated files
+  are available through an explicit All files view, and labels include path
+  context instead of only the basename.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---

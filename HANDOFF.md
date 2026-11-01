@@ -151,6 +151,11 @@ and should remain on Railway or an equivalent service.
   aliases and improved frontend layer classification for `app/`, `components/`,
   `pages/`, `hooks/`, and `lib/`; the local Eternixx1 graph now resolves 15
   relationships instead of zero.
+- [x] Reworked the V2 graph visualization in commit `c8adf3e`: the default is
+  now a deterministic connected-file architecture map with stable layer
+  columns, readable path-aware labels, visible edges, and an explicit All files
+  scope for isolated files. The local Eternixx1 view shows 16 connected files,
+  15 imports, and 10 isolated files hidden by default.
 
 ### No-cost production decision
 

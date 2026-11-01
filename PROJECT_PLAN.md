@@ -176,6 +176,9 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
   import/dependant tracing, layer-aware styling, explicit fit/re-layout/clear
   controls, and reduced-motion behavior. See
   `docs/graph-visualization.md` for the decision and research sources.
+- Reworked the graph in `c8adf3e` after visual QA: the default view now hides
+  isolated files, uses deterministic layer columns instead of random force
+  placement, keeps labels path-aware, and exposes an explicit All files view.
 - Added same-origin Vercel API routing in `frontend_v2/vercel.json`; browser
   requests continue to use `/api/*` while the current deployment forwards to
   the live FastAPI route root. The rewrite should target
