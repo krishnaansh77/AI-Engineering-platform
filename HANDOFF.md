@@ -23,6 +23,8 @@ model, or Codex session changes. Update it after every meaningful milestone.
   `https://zoological-mercy-production-8922.up.railway.app`
 - Current production backend:
   `https://ai-engineering-platform-production.up.railway.app`
+- Redesigned Vercel frontend alias:
+  `https://ai-engineering-platform-frontendv2-topaz.vercel.app`
 - Existing deployment services: frontend, FastAPI backend, Celery worker,
   PostgreSQL/pgvector, and Redis on Railway.
 - Local Docker verification is currently blocked because Docker Desktop is not
@@ -129,6 +131,12 @@ and should remain on Railway or an equivalent service.
   before the SPA fallback. Replace the destination with
   `https://<django-origin>/api/:path*` when the Django Railway service gets a
   public domain. The browser continues to call same-origin `/api/*`.
+- [x] Deployed `frontend_v2` to Vercel and verified the live alias loads. The
+  unauthenticated `/api/auth/me` probe returns the expected `401 Authentication
+  required` response through the Vercel rewrite.
+- [!] Railway rejected creating a separate Django service because the current
+  Free plan reached its resource provision limit. Existing FastAPI, frontend,
+  worker, Redis, and Postgres production services were left untouched.
 
 ### Immediate next slice
 

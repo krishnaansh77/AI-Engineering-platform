@@ -170,9 +170,17 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
   import/dependant tracing, layer-aware styling, explicit fit/re-layout/clear
   controls, and reduced-motion behavior. See
   `docs/graph-visualization.md` for the decision and research sources.
-- Added a same-origin Vercel JavaScript API proxy at `frontend_v2/api/`.
-  Vercel needs the non-secret `DJANGO_API_URL` environment variable set to the
-  Railway Django origin; browser requests continue to use `/api/*`.
+- Added same-origin Vercel API routing in `frontend_v2/vercel.json`; browser
+  requests continue to use `/api/*` while the current deployment forwards to
+  the live FastAPI route root. The rewrite should target
+  `https://<django-origin>/api/:path*` once the Django service is publicly
+  deployed.
+- Deployed the redesigned `frontend_v2` to Vercel at
+  `https://ai-engineering-platform-frontendv2-topaz.vercel.app` and verified
+  the live API rewrite returns the expected unauthenticated response. A new
+  Railway Django service could not be provisioned because the current Free
+  plan reached its resource limit; the existing production services remain
+  unchanged.
 
 - Authentication and RBAC — foundation complete: user accounts, salted PBKDF2 password hashes, JWT access tokens, role field, registration/login/identity endpoints, Alembic migrations `003_users` and `004_repository_owners`, repository ownership, and a frontend account screen. Repository and query APIs now require authentication; authenticated members can connect, re-index, and delete their own repositories; admins/owners retain global mutation access. The frontend redirects unauthenticated API requests to `/auth`. Ownership migration is applied locally and Alembic is at head.
 - Authentication hardening — complete: `/auth/*` requests now use a dedicated low per-minute Redis rate limit, with regression coverage for login throttling and existing API limits.
