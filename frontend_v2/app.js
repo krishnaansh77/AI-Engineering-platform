@@ -1,6 +1,6 @@
 const app = document.querySelector("#app");
 const API_BASE = window.__AISE_API_BASE__ || "/api";
-const state = { user: null, authMode: "login", loading: false, graphData: null, graphRepoId: null, graphMode: "connected", cy: null, refreshTimer: null };
+const state = { user: null, authMode: "login", loading: false, graphData: null, graphRepoId: null, graphMode: "connected", graphView: "story", storyMap: null, storyStage: null, cy: null, refreshTimer: null };
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 const token = () => localStorage.getItem("aise_access_token");
@@ -55,6 +55,97 @@ function connectView() {
   return shell(`<div class="form-card card"><p class="eyebrow">Repository onboarding</p><h1 style="font-size:34px">Connect a GitHub repository.</h1><p class="lede" style="font-size:14px">The indexer will detect languages, parse symbols, build relationships, and prepare cited Q&A.</p><div id="connect-error"></div><form id="connect-form"><div class="form-row"><label for="github_url">GitHub URL</label><input id="github_url" name="github_url" type="url" placeholder="https://github.com/org/repository" required /></div><div class="form-row"><label for="name">Display name <span class="muted">(optional)</span></label><input id="name" name="name" type="text" placeholder="Payments service" /></div><button class="button primary" type="submit">Connect and index</button></form></div>`);
 }
 
+const storyStages = [
+  { key: "screens", icon: "1", title: "Screens people use", description: "The pages a person can open and use." },
+  { key: "work", icon: "2", title: "Work after a click", description: "The jobs the app does after someone taps a button or sends a form." },
+  { key: "building", icon: "3", title: "Shared building blocks", description: "Reusable pieces that help many parts of the app." },
+  { key: "data", icon: "4", title: "Data and outside services", description: "Where the app saves, reads, or sends information." },
+  { key: "safety", icon: "✓", title: "Safety checks", description: "Tests that help make sure changes do not break the app." },
+  { key: "setup", icon: "⚙", title: "App setup", description: "Instructions that help the app start, build, and run." },
+  { key: "other", icon: "•", title: "Other app parts", description: "Files that support the rest of the app." },
+];
+
+function storyStageForFile(filePath) {
+  const path = String(filePath || "").toLowerCase().replaceAll("\\", "/");
+  const name = path.split("/").pop() || "";
+  const parts = new Set(path.split("/"));
+  if (name.includes("test") || parts.has("tests") || parts.has("__tests__") || parts.has("spec")) return "safety";
+  if (/(^|\/)(app|pages)(\/.*)?\/page\.(js|jsx|ts|tsx)$/.test(path) || /(^|\/)(app|pages)\/(index|home)\.(js|jsx|ts|tsx)$/.test(path)) return "screens";
+  if ([...parts].some((part) => ["actions", "api", "services", "controllers", "use-cases", "handlers"].includes(part))) return "work";
+  if ([...parts].some((part) => ["components", "hooks", "ui", "lib", "utils", "helpers"].includes(part))) return "building";
+  if ([...parts].some((part) => ["models", "database", "repositories", "providers", "schemas", "migrations", "store", "stores"].includes(part)) || /(stripe|supabase|firebase|prisma|mongoose|sequelize)/.test(path)) return "data";
+  if (name.endsWith(".md") || name.endsWith(".mdx") || ["package.json", "pyproject.toml", "dockerfile", "docker-compose.yml", "vercel.json"].includes(name)) return "setup";
+  return "other";
+}
+
+function buildStoryMap(graph) {
+  const nodes = Array.isArray(graph?.nodes) ? graph.nodes : [];
+  const edges = Array.isArray(graph?.edges) ? graph.edges : [];
+  const stageById = new Map(nodes.map((node) => [node.id, storyStageForFile(node.file_path)]));
+  const degree = new Map(nodes.map((node) => [node.id, 0]));
+  edges.forEach((edge) => {
+    degree.set(edge.source, (degree.get(edge.source) || 0) + 1);
+    degree.set(edge.target, (degree.get(edge.target) || 0) + 1);
+  });
+  const groups = new Map(storyStages.map((stage) => [stage.key, []]));
+  nodes.forEach((node) => groups.get(stageById.get(node.id))?.push({ ...node, connections: degree.get(node.id) || 0 }));
+  groups.forEach((group) => group.sort((left, right) => right.connections - left.connections || left.file_path.localeCompare(right.file_path)));
+  return { groups, stageById, edgeCount: edges.length };
+}
+
+function renderStoryMap(storyMap, repoId) {
+  if (!storyMap) return "";
+  const coreOrder = ["screens", "work", "building", "data", "other"];
+  const coreStages = coreOrder.filter((key) => storyMap.groups.get(key)?.length);
+  const supportStages = ["safety", "setup"].filter((key) => storyMap.groups.get(key)?.length);
+  const renderStage = (key, index, compact = false) => {
+    const stage = storyStages.find((item) => item.key === key);
+    const files = storyMap.groups.get(key) || [];
+    const examples = files.slice(0, compact ? 2 : 3).map((file) => graphLabel(file.file_path)).join(" · ");
+    return `<button class="story-step${state.storyStage === key ? " is-selected" : ""}${compact ? " is-support" : ""}" data-action="story-stage" data-stage="${key}" type="button" aria-pressed="${state.storyStage === key}"><span class="story-step-number">${stage.icon}</span><span class="story-step-content"><strong>${escapeHtml(stage.title)}</strong><span>${files.length} ${files.length === 1 ? "file" : "files"}</span><small>${escapeHtml(stage.description)}</small><em>${escapeHtml(examples)}</em></span></button>`;
+  };
+  const flow = coreStages.map((key, index) => `${index ? `<span class="story-arrow" aria-hidden="true">→</span>` : ""}${renderStage(key, index)}`).join("");
+  const support = supportStages.length ? `<div class="story-support"><span>Also found</span>${supportStages.map((key, index) => renderStage(key, index, true)).join("")}</div>` : "";
+  return `<div class="story-intro"><strong>Start here:</strong> this is a simple map of the jobs inside the repository. Pick a box to see the files behind it. The arrows describe the usual journey through an app, not every tiny code connection.</div><div class="story-flow">${flow || `<p class="muted">We found files, but not enough folder clues to tell a simple story yet.</p>`}</div>${support}<div id="story-detail" class="story-detail" role="status" aria-live="polite">Pick a box above to see the exact files. Use <strong>Developer file map</strong> only when you need every import.</div>`;
+}
+
+function showStoryStage(stageKey) {
+  if (!state.storyMap) return;
+  state.storyStage = stageKey;
+  document.querySelectorAll("[data-action='story-stage']").forEach((button) => {
+    const active = button.dataset.stage === stageKey;
+    button.classList.toggle("is-selected", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const stage = storyStages.find((item) => item.key === stageKey);
+  const files = state.storyMap.groups.get(stageKey) || [];
+  const detail = document.querySelector("#story-detail");
+  if (!detail || !stage) return;
+  detail.innerHTML = `<strong>${escapeHtml(stage.title)}</strong><span>${escapeHtml(stage.description)}</span><div class="story-files">${files.map((file) => `<button class="story-file" data-action="preview-source" data-id="${escapeHtml(state.graphRepoId)}" data-path="${encodeURIComponent(file.file_path)}" type="button">${escapeHtml(file.file_path)}${file.connections ? `<small>${file.connections} links</small>` : ""}</button>`).join("")}</div>`;
+  detail.querySelectorAll("[data-action='preview-source']").forEach((button) => button.addEventListener("click", () => { location.hash = `source/${button.dataset.id}/${button.dataset.path}`; }));
+}
+
+function setGraphView(view) {
+  state.graphView = view === "details" ? "details" : "story";
+  const story = document.querySelector("#graph-story-panel");
+  const details = document.querySelector("#graph-detail-panel");
+  if (story) story.hidden = state.graphView !== "story";
+  if (details) details.hidden = state.graphView !== "details";
+  document.querySelectorAll("[data-action='graph-view-tab']").forEach((button) => {
+    const active = button.dataset.view === state.graphView;
+    button.classList.toggle("is-active", active);
+    button.setAttribute("aria-selected", String(active));
+  });
+  if (state.graphView === "details") {
+    state.cy?.destroy();
+    state.cy = null;
+    mountDependencyGraph();
+  } else {
+    state.cy?.destroy();
+    state.cy = null;
+  }
+}
+
 async function repoView(id) {
   if (!token()) return authView();
   try {
@@ -63,9 +154,12 @@ async function repoView(id) {
     state.graphData = graph.unavailable ? null : graph;
     state.graphRepoId = id;
     state.graphMode = "connected";
+    state.graphView = "story";
+    state.storyMap = graph.unavailable ? null : buildStoryMap(graph);
+    state.storyStage = state.storyMap && storyStages.find((stage) => state.storyMap.groups.get(stage.key)?.length)?.key;
     const unavailable = (data) => data?.unavailable ? `<p class="muted">Unavailable: ${escapeHtml(data.unavailable)}</p>` : null;
     const fileList = unavailable(files) || `<div class="data-list">${files.slice(0, 20).map((file) => `<div class="data-row"><span>${escapeHtml(file.file_path)}</span>${previewButton(id, file.file_path)}</div>`).join("") || "<p class='muted'>No indexed files available yet.</p>"}</div>${files.length > 20 ? `<p class="muted" style="margin-top:12px">Showing 20 of ${files.length} files.</p>` : ""}`;
-    const graphPanel = unavailable(graph) || `<section class="card graph-card" aria-labelledby="dependency-graph-title"><div class="graph-head"><div><p class="eyebrow">Architecture map</p><h2 id="dependency-graph-title">Dependency graph</h2><p class="muted">The default map shows only files with relationships, arranged by inferred layer. Select a node to trace imports and dependants.</p></div><div class="graph-actions"><button class="button secondary" data-action="graph-reset" type="button">Reset focus</button><button class="button secondary" data-action="graph-fit" type="button">Fit map</button><button class="button secondary" data-action="graph-layout" type="button">Re-layout</button></div></div><div class="graph-toolbar"><div class="graph-view-switch" role="group" aria-label="Graph scope"><button class="button secondary graph-view-button is-active" data-action="graph-view" data-view="connected" type="button" aria-pressed="true">Connected map</button><button class="button secondary graph-view-button" data-action="graph-view" data-view="all" type="button" aria-pressed="false">All files</button></div><span id="graph-summary" class="graph-summary" role="status" aria-live="polite"></span></div><div id="dependency-graph" class="dependency-graph" role="img" aria-label="Interactive dependency graph of indexed files"></div><div class="graph-footer"><div class="graph-legend" aria-label="Graph legend"><span><i class="legend-dot backend"></i>Backend</span><span><i class="legend-dot frontend"></i>Frontend</span><span><i class="legend-dot tests"></i>Tests</span><span><i class="legend-dot configuration"></i>Config/docs</span><span><i class="legend-line outgoing"></i>Imports</span><span><i class="legend-line incoming"></i>Imported by</span></div><div id="graph-selection" class="graph-selection" role="status" aria-live="polite">Select a node to inspect its direct relationships.</div></div></section>`;
+    const graphPanel = unavailable(graph) || `<section class="card graph-card" aria-labelledby="dependency-graph-title"><div class="graph-head"><div><p class="eyebrow">How this app works</p><h2 id="dependency-graph-title">Repository story map</h2><p class="muted">Start with the simple story. Open the developer map only when you need exact import connections.</p></div></div><div class="story-tabs" role="tablist" aria-label="Repository map detail"><button class="button secondary graph-view-button is-active" id="story-map-tab" data-action="graph-view-tab" data-view="story" role="tab" aria-controls="graph-story-panel" aria-selected="true" type="button">Simple story</button><button class="button secondary graph-view-button" id="developer-map-tab" data-action="graph-view-tab" data-view="details" role="tab" aria-controls="graph-detail-panel" aria-selected="false" type="button">Developer file map</button></div><div id="graph-story-panel" role="tabpanel" aria-labelledby="story-map-tab">${renderStoryMap(state.storyMap, id)}</div><div id="graph-detail-panel" role="tabpanel" aria-labelledby="developer-map-tab" hidden><div class="graph-head graph-head-detail"><p class="muted">Each dot is a file. Arrows mean “this file uses that file.” Choose a dot to trace the direct connections.</p><div class="graph-actions"><button class="button secondary" data-action="graph-reset" type="button">Reset focus</button><button class="button secondary" data-action="graph-fit" type="button">Fit map</button><button class="button secondary" data-action="graph-layout" type="button">Re-layout</button></div></div><div class="graph-toolbar"><div class="graph-view-switch" role="group" aria-label="File-map scope"><button class="button secondary graph-view-button is-active" data-action="graph-view" data-view="connected" type="button" aria-pressed="true">Connected files</button><button class="button secondary graph-view-button" data-action="graph-view" data-view="all" type="button" aria-pressed="false">All files</button></div><span id="graph-summary" class="graph-summary" role="status" aria-live="polite"></span></div><div id="dependency-graph" class="dependency-graph" role="img" aria-label="Interactive dependency graph of indexed files"></div><div class="graph-footer"><div class="graph-legend" aria-label="Graph legend"><span><i class="legend-dot backend"></i>Backend</span><span><i class="legend-dot frontend"></i>Frontend</span><span><i class="legend-dot tests"></i>Tests</span><span><i class="legend-dot configuration"></i>Config/docs</span><span><i class="legend-line outgoing"></i>Uses</span><span><i class="legend-line incoming"></i>Used by</span></div><div id="graph-selection" class="graph-selection" role="status" aria-live="polite">Select a file to inspect its direct relationships.</div></div></div></section>`;
     const indexingNotice = ["indexing", "pending"].includes(repo.status) ? `<div class="indexing-notice" role="status" aria-live="polite"><span class="indexing-pulse" aria-hidden="true"></span><div><strong>Indexing in progress</strong><p>Repository intelligence will appear as files are parsed. This page refreshes automatically.</p></div></div>` : repo.status === "error" ? `<div class="alert" role="alert"><strong>Indexing needs attention.</strong> Re-index the repository to retry.</div>` : "";
     const tourPanel = unavailable(tour) || `<div class="data-list"><div class="data-row"><span>Connected files</span><strong>${tour.file_count || 0}</strong></div><div class="data-row"><span>Relationships</span><strong>${tour.relationship_count || 0}</strong></div>${(tour.key_files || []).slice(0, 5).map((item) => `<div class="data-row"><span><strong>${escapeHtml(item.file_path)}</strong><small>${escapeHtml(item.layer)} · ${item.connections} connections</small></span>${previewButton(id, item.file_path)}</div>`).join("")}</div>`;
     const latestPanel = unavailable(latestChange) || `<p class="muted">${escapeHtml(latestChange.short_sha || "")} · ${escapeHtml(latestChange.author || "Unknown")}</p><h3>${escapeHtml(latestChange.message || "Latest change")}</h3><div class="data-list"><div class="data-row"><span>Changes</span><strong>+${latestChange.insertions || 0} / −${latestChange.deletions || 0}</strong></div><div class="data-row"><span>Files changed</span><strong>${(latestChange.changed_files || []).length}</strong></div></div><p class="muted">${(latestChange.recommendations || []).map(escapeHtml).join(" ")}</p>`;
@@ -167,7 +261,7 @@ function updateGraphViewControls(visibleNodeCount, visibleEdgeCount) {
 
 function mountDependencyGraph() {
   const container = document.querySelector("#dependency-graph");
-  if (!container || !state.graphData || !window.cytoscape) return;
+  if (state.graphView !== "details" || !container || !state.graphData || !window.cytoscape) return;
   const graph = state.graphData;
   const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
   const edges = Array.isArray(graph.edges) ? graph.edges : [];
@@ -197,7 +291,6 @@ function mountDependencyGraph() {
     elements,
     minZoom: 0.2,
     maxZoom: 3.2,
-    wheelSensitivity: 0.18,
     pixelRatio: "auto",
     style: [
       { selector: "node", style: { "background-color": "#7386b8", "border-color": "#ffffff", "border-width": 2, "height": "data(size)", "width": "data(size)", "label": "data(label)", "font-size": 10, "font-family": "Inter, system-ui, sans-serif", color: "#172033", "text-opacity": 1, "text-background-color": "#f9fbff", "text-background-opacity": 0.9, "text-background-padding": 3, "text-wrap": "ellipsis", "text-max-width": 150, "text-valign": "bottom", "text-margin-y": 8, "overlay-color": "#5c8cff", "overlay-opacity": 0, "z-index": 2, "transition-property": "background-color, border-color, border-width, opacity, text-opacity, overlay-opacity", "transition-duration": "220ms" } },
@@ -261,6 +354,7 @@ async function render() {
   else if (hash.startsWith("source/")) { const parts = hash.split("/"); app.innerHTML = await sourceView(parts[1], parts.slice(2).join("/")); }
   else app.innerHTML = await dashboard();
   bindEvents();
+  if (hash.startsWith("repo/") && state.storyStage) showStoryStage(state.storyStage);
   mountDependencyGraph();
   if (hash.startsWith("repo/") && document.querySelector(".indexing-notice")) {
     state.refreshTimer = window.setTimeout(() => {
@@ -282,6 +376,8 @@ function bindEvents() {
   document.querySelector("[data-action='graph-reset']")?.addEventListener("click", clearGraphFocus);
   document.querySelector("[data-action='graph-fit']")?.addEventListener("click", () => state.cy?.fit(undefined, 38));
   document.querySelector("[data-action='graph-layout']")?.addEventListener("click", () => runGraphLayout());
+  document.querySelectorAll("[data-action='graph-view-tab']").forEach((button) => button.addEventListener("click", () => setGraphView(button.dataset.view)));
+  document.querySelectorAll("[data-action='story-stage']").forEach((button) => button.addEventListener("click", () => showStoryStage(button.dataset.stage)));
   document.querySelectorAll("[data-action='graph-view']").forEach((button) => button.addEventListener("click", () => {
     if (button.dataset.view === state.graphMode) return;
     state.graphMode = button.dataset.view === "all" ? "all" : "connected";

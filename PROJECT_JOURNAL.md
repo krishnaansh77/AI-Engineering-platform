@@ -29,6 +29,9 @@
   connected files are shown by default in stable layer columns, isolated files
   are available through an explicit All files view, and labels include path
   context instead of only the basename.
+- The repository page now leads with a child-friendly Repository story map:
+  plain-language app stages reveal their source files on demand, while the exact
+  dependency graph is retained as an optional Developer file map.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
