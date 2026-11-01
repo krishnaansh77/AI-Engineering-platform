@@ -125,10 +125,10 @@ and should remain on Railway or an equivalent service.
   controls, and reduced-motion behavior. Design rationale and research sources
   are recorded in `docs/graph-visualization.md`.
 - [x] Added Vercel API routing under `frontend_v2/vercel.json`; `/api/*` is
-  explicitly rewritten to the live compatibility API before the SPA fallback.
-  Replace the public destination with the Django Railway origin when the
-  Railway Free-plan resource limit is resolved. The browser continues to call
-  same-origin `/api/*`.
+  explicitly rewritten to the live FastAPI API (which has root-level routes)
+  before the SPA fallback. Replace the destination with
+  `https://<django-origin>/api/:path*` when the Django Railway service gets a
+  public domain. The browser continues to call same-origin `/api/*`.
 
 ### Immediate next slice
 
