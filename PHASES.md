@@ -395,7 +395,8 @@
 ### 4.8 — Security Analysis Integration (#19)
 
 - [x] Opt-in heuristic secret scan with redacted findings and an accessible V2 repository UI
-- [ ] Integrate static analysis tools (Bandit for Python, ESLint security rules, etc.)
+- [x] Run Bandit high-confidence checks on backend Python source in CI
+- [ ] Add ESLint security rules for the vanilla JavaScript frontend
 - [ ] Display findings with: location, why it matters, relevant code, suggested fix
 
 ---

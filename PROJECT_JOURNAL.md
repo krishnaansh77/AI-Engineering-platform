@@ -45,6 +45,8 @@
 - Backend requests now emit structured JSON completion events with safe request
   correlation IDs, HTTP status, client, and duration fields; the ID is also
   returned as `X-Request-ID` for debugging a single request across logs.
+- CI now runs Bandit high-confidence static security checks over backend Python
+  source; frontend JavaScript security linting remains open.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
