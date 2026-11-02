@@ -3,7 +3,7 @@ import unittest
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-from app.api.schemas import QueryRequest, RepositoryVersionIndexRequest
+from app.api.schemas import QueryRequest, RepositoryVersionCompareRequest, RepositoryVersionIndexRequest
 from app.services.retrieval_service import RetrievalService
 from app.services.indexing_service import IndexingService
 from app.services.parser_service import ParsedChunk
@@ -45,6 +45,12 @@ class TestVersionValidation(unittest.TestCase):
         ):
             with self.subTest(version_ref=version_ref), self.assertRaises(ValueError):
                 QueryRequest(question="Where is login?", version_ref=version_ref)
+
+    def test_version_comparison_requires_valid_refs(self):
+        payload = RepositoryVersionCompareRequest(base_ref="tag:v1.0", head_ref="branch:main")
+        self.assertEqual(payload.base_ref, "tag:v1.0")
+        with self.assertRaises(ValueError):
+            RepositoryVersionCompareRequest(base_ref="default", head_ref="branch:feature/.hidden")
 
 
 class TestRetrievalVersionIsolation(unittest.IsolatedAsyncioTestCase):

@@ -85,6 +85,13 @@ class TestGitHubService(unittest.TestCase):
             self.assertNotEqual(self.service.current_commit(tag_path), self.service.current_commit(branch_path))
             self.assertEqual(Path(tag_path, "sample.py").read_text(), "value = 1\n")
             self.assertEqual(Path(branch_path, "sample.py").read_text(), "value = 2\n")
+            comparison = self.service.compare_version_checkouts(tag_path, branch_path)
+            self.assertEqual(comparison["changed_file_count"], 1)
+            self.assertEqual(comparison["changes"][0]["file_path"], "sample.py")
+            self.assertIn("-value = 1", comparison["changes"][0]["diff"])
+            self.assertIn("+value = 2", comparison["changes"][0]["diff"])
+            self.assertEqual(comparison["changes"][0]["base_citation"]["line_ranges"], ["1-1"])
+            self.assertEqual(comparison["changes"][0]["head_citation"]["line_ranges"], ["1-1"])
 
     def test_detect_frameworks(self):
         with tempfile.TemporaryDirectory() as tmpdir:

@@ -111,6 +111,17 @@ class RepositoryVersionIndexRequest(BaseModel):
         return value
 
 
+class RepositoryVersionCompareRequest(BaseModel):
+    """Select two already indexed refs for an exact source diff."""
+    base_ref: str = Field(..., min_length=1, max_length=255)
+    head_ref: str = Field(..., min_length=1, max_length=255)
+
+    @field_validator("base_ref", "head_ref")
+    @classmethod
+    def validate_version(cls, value: str) -> str:
+        return _validate_version_ref(value)
+
+
 class RepositoryVersionResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

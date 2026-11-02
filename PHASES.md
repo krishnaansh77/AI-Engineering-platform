@@ -388,7 +388,7 @@
 
 - [x] Index branches/tags into separate shallow clones and version-scoped chunks
 - [x] Answer Q&A and agent requests against a selected indexed version
-- [ ] "How did X change from v1 to v2?"
+- [x] Compare two indexed refs with bounded unified diffs and line-range citations
 
 ---
 

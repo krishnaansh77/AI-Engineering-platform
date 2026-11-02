@@ -275,10 +275,19 @@ and should remain on Railway or an equivalent service.
 - [x] Added branch/tag-aware indexing and version-scoped retrieval. Migration
   `009_repository_versions` backfills existing indexes as `default`; branch and
   tag clones, file/chunk records, query cache entries, agent tools, graph data,
-  and chat selection keep each version isolated. Version comparison remains open.
-- [ ] Phase 4 next: answer “how did this change between versions?” with cited
-  diffs. Django production
-  cutover remains blocked by Railway capacity.
+  and chat selection keep each version isolated. Cross-version retrieval reuse
+  avoids embedding unchanged files again.
+- [x] Added a zero-LLM-cost compare view for two indexed refs. It displays
+  bounded unified diffs, added/removed/modified files, and base/head line-range
+  citations. The UI and `/repos/{id}/versions/compare` route are in the latest
+  change; local Git tests cover branch/tag comparison.
+- [ ] Phase 4 next: extend comparison into symbol-aware change explanations and
+  dependency impact across versions. Django production cutover remains blocked
+  by Railway capacity.
+- [x] Pushed branch/tag Q&A as commit `f9b5e6c`. Production health verified at
+  migration revision `009_repository_versions`; Vercel serves the new frontend
+  and proxies the version API routes.
+- [ ] The compare view is currently local until its follow-up commit deploys.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
   attempting any production API cutover; the current Railway free-plan limit
   still blocks provisioning a separate Django service.

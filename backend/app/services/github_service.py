@@ -412,6 +412,104 @@ class GitHubService:
             "recommendations": recommendations,
         }
 
+    def compare_version_checkouts(
+        self,
+        base_path: str,
+        head_path: str,
+        max_files: int = 30,
+        max_diff_chars: int = 24_000,
+    ) -> Dict:
+        """Compare two isolated version checkouts without fetching or mutating either one."""
+        base_repo = git.Repo(base_path)
+        head_repo = git.Repo(head_path)
+        base_commit = base_repo.head.commit
+        head_commit = head_repo.head.commit
+        base_blobs = {
+            item.path: item
+            for item in base_commit.tree.traverse()
+            if item.type == "blob"
+        }
+        head_blobs = {
+            item.path: item
+            for item in head_commit.tree.traverse()
+            if item.type == "blob"
+        }
+        changed_paths = sorted(
+            path
+            for path in base_blobs.keys() | head_blobs.keys()
+            if path not in base_blobs
+            or path not in head_blobs
+            or base_blobs[path].hexsha != head_blobs[path].hexsha
+        )
+
+        changes = []
+        remaining_chars = max_diff_chars
+        for path in changed_paths[:max_files]:
+            before = base_blobs.get(path)
+            after = head_blobs.get(path)
+            status = "added" if before is None else "deleted" if after is None else "modified"
+            item = {
+                "file_path": path,
+                "status": status,
+                "base_lines": 0,
+                "head_lines": 0,
+                "base_citation": None,
+                "head_citation": None,
+                "diff": "",
+            }
+            try:
+                before_bytes = before.data_stream.read(200_001) if before else b""
+                after_bytes = after.data_stream.read(200_001) if after else b""
+                if len(before_bytes) > 200_000 or len(after_bytes) > 200_000:
+                    item["omitted_reason"] = "File exceeds the 200 KB comparison limit."
+                elif b"\0" in before_bytes or b"\0" in after_bytes:
+                    item["omitted_reason"] = "Binary files are listed but not shown as text diffs."
+                else:
+                    before_text = before_bytes.decode("utf-8")
+                    after_text = after_bytes.decode("utf-8")
+                    item["base_lines"] = len(before_text.splitlines())
+                    item["head_lines"] = len(after_text.splitlines())
+                    diff = "".join(difflib.unified_diff(
+                        before_text.splitlines(keepends=True),
+                        after_text.splitlines(keepends=True),
+                        fromfile=f"base/{path}",
+                        tofile=f"head/{path}",
+                        n=3,
+                    ))
+                    if len(diff) > remaining_chars:
+                        item["omitted_reason"] = "Total diff display limit reached."
+                    else:
+                        item["diff"] = diff
+                        remaining_chars -= len(diff)
+                        base_ranges = []
+                        head_ranges = []
+                        for old_start, old_count, new_start, new_count in re.findall(
+                            r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@",
+                            diff,
+                            re.MULTILINE,
+                        ):
+                            old_count = int(old_count or 1)
+                            new_count = int(new_count or 1)
+                            if old_count:
+                                base_ranges.append(f"{old_start}-{int(old_start) + old_count - 1}")
+                            if new_count:
+                                head_ranges.append(f"{new_start}-{int(new_start) + new_count - 1}")
+                        item["base_citation"] = {"file_path": path, "line_ranges": base_ranges}
+                        item["head_citation"] = {"file_path": path, "line_ranges": head_ranges}
+            except (UnicodeDecodeError, OSError, ValueError):
+                item["omitted_reason"] = "File is not readable as UTF-8 text."
+            changes.append(item)
+
+        return {
+            "base_sha": base_commit.hexsha,
+            "head_sha": head_commit.hexsha,
+            "changed_file_count": len(changed_paths),
+            "shown_file_count": len(changes),
+            "truncated": len(changed_paths) > len(changes)
+            or any(change.get("omitted_reason") for change in changes),
+            "changes": changes,
+        }
+
     async def list_issues(self, github_url: str, pat: str = "", limit: int = 20, state: str = "open") -> List[Dict]:
         """Fetch GitHub issues with bounded retries, excluding pull requests."""
         parts = [part for part in github_url.rstrip("/").split("/") if part]

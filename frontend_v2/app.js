@@ -365,6 +365,25 @@ async function loadChatVersions(repoId, preferredVersion = state.selectedVersion
       picker.value = selected.version_ref;
       state.selectedVersion = selected.version_ref;
     }
+    const readyVersions = versions.filter((version) => version.status === "ready");
+    const compareOptions = readyVersions.map((version) => {
+      const label = version.version_ref === "default"
+        ? `Default · ${version.ref_name}`
+        : `${version.ref_type} · ${version.ref_name}`;
+      return `<option value="${escapeHtml(version.version_ref)}">${escapeHtml(label)}</option>`;
+    }).join("");
+    const basePicker = document.querySelector("#compare-base-version");
+    const headPicker = document.querySelector("#compare-head-version");
+    if (basePicker && headPicker) {
+      basePicker.innerHTML = compareOptions;
+      headPicker.innerHTML = compareOptions;
+      basePicker.value = readyVersions.some((version) => version.version_ref === "default") ? "default" : (readyVersions[0]?.version_ref || "");
+      headPicker.value = readyVersions.find((version) => version.version_ref === preferredVersion && version.version_ref !== basePicker.value)?.version_ref
+        || readyVersions.find((version) => version.version_ref !== basePicker.value)?.version_ref
+        || basePicker.value;
+      const compareButton = document.querySelector("[data-action='compare-versions']");
+      if (compareButton) compareButton.disabled = readyVersions.length < 2;
+    }
     const inProgress = versions.some((version) => ["pending", "indexing"].includes(version.status));
     const failed = versions.find((version) => version.version_ref === preferredVersion && version.status === "error");
     status.textContent = failed?.error_message || (inProgress ? "A version is indexing. This list refreshes automatically." : "Only indexed versions can be queried.");
@@ -407,7 +426,24 @@ async function submitAnswerFeedback(button) {
 
 function chatView(id) {
   if (!token()) return authView();
-  return shell(`<div class="chat"><div><a class="muted" href="#repo/${id}">← Back to repository</a><p class="eyebrow" style="margin-top:28px">Cited code Q&A</p><h1 style="font-size:38px">Ask the codebase.</h1><p class="lede" style="font-size:14px">Choose an indexed branch or tag for version-specific answers and citations.</p></div><div id="chat-log"></div><form id="chat-form" class="card"><div class="form-row"><label for="chat-version">Answer from this version</label><select id="chat-version" name="version_ref"><option value="default">Loading indexed versions…</option></select><small id="version-status" class="muted" role="status" aria-live="polite">Loading version list…</small></div><div class="version-index-form"><strong>Index another branch or tag</strong><div class="version-index-fields"><label><span class="sr-only">Reference type</span><select id="version-ref-type" name="ref_type"><option value="branch">Branch</option><option value="tag">Tag</option></select></label><label class="sr-only" for="version-ref-name">Branch or tag name</label><input id="version-ref-name" name="ref_name" maxlength="200" placeholder="feature/new-search or v1.2.0"/><button class="button secondary" data-action="index-version" type="button">Index version</button></div></div><div class="form-row"><label for="question">Your question</label><textarea id="question" name="question" placeholder="Where is authentication implemented, and what calls it?" required></textarea></div><div class="actions"><button class="button primary" type="submit">Ask with citations</button><button class="button secondary" data-action="ask-agent" type="button">Ask agent with tools</button></div></form></div>`);
+  return shell(`<div class="chat"><div><a class="muted" href="#repo/${id}">← Back to repository</a><p class="eyebrow" style="margin-top:28px">Cited code Q&A</p><h1 style="font-size:38px">Ask the codebase.</h1><p class="lede" style="font-size:14px">Choose an indexed branch or tag for version-specific answers and citations.</p></div><div id="chat-log"></div><form id="chat-form" class="card"><div class="form-row"><label for="chat-version">Answer from this version</label><select id="chat-version" name="version_ref"><option value="default">Loading indexed versions…</option></select><small id="version-status" class="muted" role="status" aria-live="polite">Loading version list…</small></div><div class="version-index-form"><strong>Index another branch or tag</strong><div class="version-index-fields"><label><span class="sr-only">Reference type</span><select id="version-ref-type" name="ref_type"><option value="branch">Branch</option><option value="tag">Tag</option></select></label><label class="sr-only" for="version-ref-name">Branch or tag name</label><input id="version-ref-name" name="ref_name" maxlength="200" placeholder="feature/new-search or v1.2.0"/><button class="button secondary" data-action="index-version" type="button">Index version</button></div></div><section class="version-compare"><div><strong>Compare indexed versions</strong><p class="muted">Review exact file changes between two ready snapshots. No AI request is used.</p></div><div class="version-compare-fields"><label for="compare-base-version">From<select id="compare-base-version"><option value="">Loading…</option></select></label><label for="compare-head-version">To<select id="compare-head-version"><option value="">Loading…</option></select></label><button class="button secondary" data-action="compare-versions" type="button" disabled>Compare</button></div><div id="version-compare-result" aria-live="polite"></div></section><div class="form-row"><label for="question">Your question</label><textarea id="question" name="question" placeholder="Where is authentication implemented, and what calls it?" required></textarea></div><div class="actions"><button class="button primary" type="submit">Ask with citations</button><button class="button secondary" data-action="ask-agent" type="button">Ask agent with tools</button></div></form></div>`);
+}
+
+function renderVersionComparison(comparison) {
+  const base = comparison.base_version?.version_ref || "base";
+  const head = comparison.head_version?.version_ref || "head";
+  const files = comparison.changes.map((change) => {
+    const citationFor = (item, version) => {
+      if (!item) return "";
+      const ranges = item.line_ranges.length ? `:${item.line_ranges.join(",")}` : "";
+      return `<span class="citation">${escapeHtml(version)} · ${escapeHtml(item.file_path)}${escapeHtml(ranges)}</span>`;
+    };
+    const citation = `${citationFor(change.base_citation, base)}${citationFor(change.head_citation, head)}`;
+    const diff = change.diff ? `<pre class="version-diff">${escapeHtml(change.diff)}</pre>` : `<p class="muted">${escapeHtml(change.omitted_reason || "No text diff available.")}</p>`;
+    return `<details class="version-change"><summary><strong>${escapeHtml(change.file_path)}</strong><span class="version-change-status">${escapeHtml(change.status)}</span></summary>${citation}${diff}</details>`;
+  }).join("");
+  const limitNote = comparison.truncated ? `<p class="muted">Some file contents were omitted by the display limit. The changed-file count still includes them.</p>` : "";
+  return `<div class="version-compare-summary"><strong>${comparison.changed_file_count} changed ${comparison.changed_file_count === 1 ? "file" : "files"}</strong><span>${escapeHtml(base)} → ${escapeHtml(head)}</span></div>${limitNote}${files || `<p class="muted">These indexed versions contain identical files.</p>`}`;
 }
 
 async function runSecurityScan(button) {
@@ -522,6 +558,26 @@ async function submitAgentQuestion(button) {
 function bindEvents() {
   document.querySelector("[data-action='ask-agent']")?.addEventListener("click", (event) => submitAgentQuestion(event.currentTarget));
   document.querySelector("#chat-version")?.addEventListener("change", (event) => { state.selectedVersion = event.currentTarget.value; });
+  document.querySelector("[data-action='compare-versions']")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const result = document.querySelector("#version-compare-result");
+    const repoId = location.hash.split("/")[1];
+    const baseRef = document.querySelector("#compare-base-version").value;
+    const headRef = document.querySelector("#compare-head-version").value;
+    if (!baseRef || !headRef || baseRef === headRef) { result.innerHTML = errorBox("Choose two different indexed versions."); return; }
+    button.disabled = true;
+    button.textContent = "Comparing…";
+    result.innerHTML = setLoading("Comparing indexed file snapshots…");
+    try {
+      const comparison = await api(`/repos/${repoId}/versions/compare`, { method: "POST", body: JSON.stringify({ base_ref: baseRef, head_ref: headRef }) });
+      result.innerHTML = renderVersionComparison(comparison);
+    } catch (error) {
+      result.innerHTML = errorBox(error.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Compare";
+    }
+  });
   document.querySelector("[data-action='index-version']")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     const refName = document.querySelector("#version-ref-name").value.trim();

@@ -23,6 +23,7 @@ from app.api.schemas import (
     PRComparisonRequest,
     RepoStatsResponse,
     RepositoryResponse,
+    RepositoryVersionCompareRequest,
     RepositoryVersionIndexRequest,
     RepositoryVersionResponse,
     SourceFileResponse,
@@ -253,6 +254,50 @@ async def index_repository_version(
     await db.commit()
     _dispatch_version_indexing_task(repo_id, version_ref)
     return {"repository_id": str(repo_id), "version_ref": version_ref, "status": "pending"}
+
+
+@router.post("/{repo_id}/versions/compare", dependencies=[Depends(require_repository_access)])
+async def compare_repository_versions(
+    repo_id: uuid.UUID,
+    payload: RepositoryVersionCompareRequest,
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Compare exact snapshots from two indexed branches or tags."""
+    repo = await db.scalar(select(Repository).where(Repository.id == repo_id))
+    if not repo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    if payload.base_ref == payload.head_ref:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Choose two different versions to compare.")
+
+    refs = {}
+    for version_ref in (payload.base_ref, payload.head_ref):
+        version = await db.scalar(select(RepositoryVersion).where(
+            RepositoryVersion.repository_id == repo_id,
+            RepositoryVersion.version_ref == version_ref,
+        ))
+        if not version or version.status != "ready":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Version '{version_ref}' must finish indexing before comparison.")
+        clone_path = repo.clone_path if version_ref == "default" else version.clone_path
+        if not clone_path:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Checkout for version '{version_ref}' is unavailable.")
+        refs[version_ref] = (version, clone_path)
+
+    try:
+        comparison = GitHubService().compare_version_checkouts(
+            refs[payload.base_ref][1], refs[payload.head_ref][1]
+        )
+    except (git.exc.GitError, OSError, ValueError) as exc:
+        logger.warning("Version comparison unavailable for repository %s: %s", repo_id, exc)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="One of the indexed checkouts is unavailable. Re-index the version and try again.") from exc
+
+    base_version, _ = refs[payload.base_ref]
+    head_version, _ = refs[payload.head_ref]
+    return {
+        "repository_id": str(repo_id),
+        "base_version": {"version_ref": payload.base_ref, "commit_sha": base_version.commit_sha},
+        "head_version": {"version_ref": payload.head_ref, "commit_sha": head_version.commit_sha},
+        **comparison,
+    }
 
 
 @router.get("/search/all")

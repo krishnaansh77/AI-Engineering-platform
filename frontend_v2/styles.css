@@ -150,6 +150,18 @@ textarea { min-height: 140px; resize: vertical; }
 .version-index-fields { display: grid; grid-template-columns: 100px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
 .version-index-fields select, .version-index-fields input { min-height: 40px; padding: 9px 10px; }
 .version-index-fields .button { min-height: 40px; padding: 0 12px; white-space: nowrap; }
+.version-compare { display: grid; gap: 11px; margin: 6px 0 18px; padding: 14px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.version-compare > div:first-child strong { font-size: 13px; }
+.version-compare > div:first-child p { margin: 4px 0 0; font-size: 12px; }
+.version-compare-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 9px; }
+.version-compare-fields label { display: grid; gap: 6px; color: var(--muted); font-size: 11px; }
+.version-compare-fields select { min-height: 40px; padding: 8px 10px; color: var(--ink); }
+.version-compare-fields .button { min-height: 40px; padding: 0 14px; }
+.version-compare-summary { display: flex; justify-content: space-between; gap: 12px; margin: 12px 0; font-size: 12px; }
+.version-change { margin: 8px 0; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.version-change summary { display: flex; justify-content: space-between; gap: 10px; cursor: pointer; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+.version-change-status { color: var(--muted); font: 700 11px ui-sans-serif, system-ui, sans-serif; }
+.version-diff { max-height: 360px; margin: 9px 0 0; padding: 12px; overflow: auto; color: #dce6ff; background: #121a31; border-radius: 8px; font: 11px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre; }
 .message { padding: 18px; border-radius: 14px; background: #fff; border: 1px solid var(--line); line-height: 1.7; }
 .message.user { color: #fff; background: var(--navy); border-color: var(--navy); }
 .citation { display: inline-block; margin: 5px 5px 0 0; padding: 5px 8px; color: var(--blue); background: var(--blue-soft); border-radius: 7px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
@@ -197,5 +209,5 @@ textarea { min-height: 140px; resize: vertical; }
 @media (max-width: 700px) { .dependency-map-edge { grid-template-columns: 1fr; gap: 4px; } }
 .footer { padding: 26px 5vw; color: var(--muted); text-align: center; font-size: 12px; }
 @media (max-width: 850px) { .hero { align-items: start; flex-direction: column; } .grid.stats, .grid.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nav a, .nav button { padding: 7px; font-size: 12px; } }
-@media (max-width: 540px) { .topbar { height: auto; min-height: 68px; padding: 13px 4vw; align-items: start; gap: 8px; flex-direction: column; } .nav { flex-wrap: wrap; } .main { padding: 30px 4vw 50px; } .grid.stats, .grid.cards { grid-template-columns: 1fr; } .card { padding: 18px; } .graph-head { align-items: start; flex-direction: column; } .graph-actions { justify-content: start; } .graph-toolbar { align-items: start; flex-direction: column; } .graph-summary { text-align: left; } .architecture-blueprint { padding: 13px; } .architecture-blueprint-head { align-items: start; flex-direction: column; gap: 3px; } .architecture-main-flow { align-items: stretch; flex-direction: column; } .architecture-connector { align-self: center; flex-basis: 34px; transform: none; } .architecture-connector b { transform: rotate(90deg); } .architecture-connector small { width: auto; } .architecture-support-grid { grid-template-columns: 1fr; } .dependency-graph { min-height: 430px; } .version-index-fields { grid-template-columns: 1fr; } }
+@media (max-width: 540px) { .topbar { height: auto; min-height: 68px; padding: 13px 4vw; align-items: start; gap: 8px; flex-direction: column; } .nav { flex-wrap: wrap; } .main { padding: 30px 4vw 50px; } .grid.stats, .grid.cards { grid-template-columns: 1fr; } .card { padding: 18px; } .graph-head { align-items: start; flex-direction: column; } .graph-actions { justify-content: start; } .graph-toolbar { align-items: start; flex-direction: column; } .graph-summary { text-align: left; } .architecture-blueprint { padding: 13px; } .architecture-blueprint-head { align-items: start; flex-direction: column; gap: 3px; } .architecture-main-flow { align-items: stretch; flex-direction: column; } .architecture-connector { align-self: center; flex-basis: 34px; transform: none; } .architecture-connector b { transform: rotate(90deg); } .architecture-connector small { width: auto; } .architecture-support-grid { grid-template-columns: 1fr; } .dependency-graph { min-height: 430px; } .version-index-fields, .version-compare-fields { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .dependency-graph *, .indexing-pulse { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
