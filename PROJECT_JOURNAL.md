@@ -47,6 +47,9 @@
   returned as `X-Request-ID` for debugging a single request across logs.
 - CI now runs Bandit high-confidence checks over backend Python and security-focused
   ESLint rules over the redesigned JavaScript frontend.
+- FastAPI request tracing can now export OTLP spans when
+  `OTEL_EXPORTER_OTLP_ENDPOINT` is configured; it remains disabled by default,
+  and `/health` reports whether an endpoint is configured.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---

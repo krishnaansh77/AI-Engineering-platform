@@ -38,6 +38,9 @@ GITHUB_APP_PRIVATE_KEY=<optional GitHub App private key; use escaped newlines>
 GITHUB_WEBHOOK_SECRET=<optional Railway secret>
 SECRET_KEY=<new production secret>
 APP_ENV=production
+# Optional tracing; leave unset to keep tracing disabled and incur no exporter traffic.
+OTEL_SERVICE_NAME=aise-backend
+OTEL_EXPORTER_OTLP_ENDPOINT=<OTLP HTTP collector base URL>
 AUTO_MIGRATE_ON_STARTUP=true
 REPOS_CLONE_DIR=/repos
 ```

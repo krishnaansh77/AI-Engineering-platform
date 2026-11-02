@@ -167,8 +167,8 @@ feedback endpoints.
 
 The observability slice is now implemented in the redesigned Account page, and
 the repository page exposes the existing opt-in redacted secret scan. Remaining
-Phase 4 work is the deeper infrastructure layer: OpenTelemetry-compatible traces,
-cross-repository/version-aware intelligence, agent tooling, and Django
+Phase 4 work is the deeper intelligence layer: cross-repository/version-aware
+search, agent tooling, and Django
 database-parity verification. Bandit and security-focused ESLint checks now run in CI.
 
 #### Active redesign migration

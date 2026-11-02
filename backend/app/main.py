@@ -25,6 +25,12 @@ from app.api.auth import router as auth_router
 from app.config import settings
 from app.database import create_all_tables, engine
 from app.services.rate_limit_service import rate_limit_for_path
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
 class JsonLogFormatter(logging.Formatter):
     """Emit compact, machine-readable logs without leaking request contents."""
@@ -56,8 +62,30 @@ else:
         _handler.setFormatter(JsonLogFormatter())
 logger = logging.getLogger("aise")
 request_logger = logging.getLogger("aise.request")
+_tracer_provider: TracerProvider | None = None
 EXPECTED_MIGRATION_REVISION = "008_backfill_repository_stats"
 _migration_startup_error: str | None = None
+
+
+def _configure_tracing(app: FastAPI) -> None:
+    """Enable OTLP request tracing only when an exporter endpoint is configured."""
+    global _tracer_provider
+    endpoint = settings.OTEL_EXPORTER_OTLP_ENDPOINT.strip()
+    if not endpoint:
+        return
+    try:
+        provider = TracerProvider(
+            resource=Resource.create({SERVICE_NAME: settings.OTEL_SERVICE_NAME})
+        )
+        provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=endpoint.rstrip("/") + "/v1/traces"))
+        )
+        trace.set_tracer_provider(provider)
+        FastAPIInstrumentor.instrument_app(app, tracer_provider=provider)
+        _tracer_provider = provider
+        logger.info("OpenTelemetry request tracing enabled for service %s", settings.OTEL_SERVICE_NAME)
+    except Exception:
+        logger.exception("OpenTelemetry tracing could not be configured; continuing without tracing")
 
 
 def _upgrade_database() -> None:
@@ -199,6 +227,8 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     yield
     logger.info("Shutting down AI Software Engineering Intelligence Platform backend...")
     await engine.dispose()
+    if _tracer_provider is not None:
+        _tracer_provider.shutdown()
 
 
 app = FastAPI(
@@ -211,6 +241,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+_configure_tracing(app)
 app.add_middleware(SafetyMiddleware)
 app.add_middleware(RequestLoggingMiddleware)
 
@@ -282,6 +313,7 @@ async def health_check() -> dict:
             "startup_error": _migration_startup_error,
         },
         "app_env": settings.APP_ENV,
+        "tracing_enabled": bool(settings.OTEL_EXPORTER_OTLP_ENDPOINT.strip()),
         "providers": {
             "llm": settings.LLM_PROVIDER,
             "llm_configured": bool(settings.OPENAI_API_KEY or settings.GOOGLE_API_KEY or settings.ANTHROPIC_API_KEY or settings.LLM_PROVIDER.lower() in {"mock", "local", "ollama"}),

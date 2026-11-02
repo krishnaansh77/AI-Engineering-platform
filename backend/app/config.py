@@ -77,6 +77,8 @@ class Settings(BaseSettings):
 
     # ── App ───────────────────────────────────────────────────────────────────
     APP_ENV: str = "development"
+    OTEL_SERVICE_NAME: str = "aise-backend"
+    OTEL_EXPORTER_OTLP_ENDPOINT: str = ""
     AUTO_MIGRATE_ON_STARTUP: bool = True
     SECRET_KEY: str = "change-me-in-production"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60

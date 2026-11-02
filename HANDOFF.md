@@ -241,8 +241,11 @@ and should remain on Railway or an equivalent service.
   and request duration/status fields without adding paid infrastructure.
 - [x] Added a CI static security job that runs Bandit high-confidence checks on
   backend Python source and security-focused ESLint rules on the redesigned JS.
-- [ ] Phase 4 next: add OpenTelemetry-compatible tracing and a trace viewer/export
-  path, keeping the no-cost deployment constraint.
+- [x] Added optional FastAPI request tracing over OTLP. Set
+  `OTEL_EXPORTER_OTLP_ENDPOINT` to a compatible collector to enable it; tracing
+  stays off when unset. The configured collector supplies trace viewing/export.
+- [ ] Phase 4 next: evaluate whether Django parity or cross-repository search is
+  the next best slice; Django production cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
   attempting any production API cutover; the current Railway free-plan limit
   still blocks provisioning a separate Django service.
