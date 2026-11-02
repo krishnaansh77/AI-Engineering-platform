@@ -150,7 +150,7 @@ async def root() -> dict:
     """Root info endpoint."""
     return {
         "platform": "AI Software Engineering Intelligence Platform",
-        "phase": "Phase 3 - Developer Productivity & Safety",
+        "phase": "Phase 4 - Production & Advanced Capabilities",
         "status": "online",
         "docs_url": "/docs",
         "llm_provider": settings.LLM_PROVIDER,

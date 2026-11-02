@@ -346,7 +346,7 @@
 - [ ] Structured logging (JSON logs → OpenTelemetry)
 - [x] Metrics: query latency, retrieval latency, LLM latency, token usage
 - [ ] Tracing: end-to-end request traces
-- [ ] Dashboard (Grafana or similar; no-cost hosted dashboard not selected)
+- [x] Dashboard: no-cost account/workspace observability panel using live health, query, token, and feedback metrics
 
 ---
 
@@ -394,6 +394,7 @@
 
 ### 4.8 — Security Analysis Integration (#19)
 
+- [x] Opt-in heuristic secret scan with redacted findings and an accessible V2 repository UI
 - [ ] Integrate static analysis tools (Bandit for Python, ESLint security rules, etc.)
 - [ ] Display findings with: location, why it matters, relevant code, suggested fix
 

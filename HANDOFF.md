@@ -168,6 +168,12 @@ and should remain on Railway or an equivalent service.
 - [x] Started the Phase 4 feedback loop in the redesigned frontend: chat answers
   now expose Helpful/Not helpful controls backed by the protected feedback API,
   and repository detail shows the aggregate helpful rate and rating count.
+- [x] Added the first no-cost Phase 4 observability surface to the redesigned
+  Account page. It aggregates live API health, query count/latency, recorded
+  tokens, estimated cost, and answer helpful rate across accessible repositories.
+- [x] Added an opt-in V2 Security quick check that calls the existing heuristic
+  secret-scan endpoint and displays only redacted findings, file locations, and
+  confidence. Full Bandit/ESLint security integration remains open.
 
 ### No-cost production decision
 
@@ -229,8 +235,10 @@ and should remain on Railway or an equivalent service.
   verification remain.
 - [x] Start Phase 4 feedback-loop delivery in `frontend_v2/`: answer ratings
   and repository-level feedback summary are wired to the existing API.
-- [ ] Phase 4 next: add a no-cost observability surface for query latency,
-  retrieval latency, provider latency, token usage, and feedback trends.
+- [x] Added a no-cost observability surface for query count, latency, token usage,
+  estimated cost, health, and feedback trends on the redesigned Account page.
+- [ ] Phase 4 next: add structured JSON request logs, correlation IDs, and tracing
+  so production failures can be diagnosed without paid infrastructure.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
   attempting any production API cutover; the current Railway free-plan limit
   still blocks provisioning a separate Django service.

@@ -154,6 +154,18 @@ textarea { min-height: 140px; resize: vertical; }
 .feedback-button:disabled { cursor: default; opacity: .65; }
 .feedback-status { color: var(--green); font-size: 11px; }
 .feedback-status.is-error { color: var(--red); }
+.security-card { grid-column: 1 / -1; }
+.security-head { display: flex; align-items: start; justify-content: space-between; gap: 18px; }
+.security-head h3 { margin-bottom: 4px; }
+.security-head p { margin-bottom: 0; }
+.security-results { margin-top: 14px; color: var(--muted); font-size: 12px; }
+.security-results .text-destructive { color: var(--red); }
+.security-results .text-success { color: var(--green); }
+.security-finding-list { display: grid; gap: 8px; margin-top: 10px; }
+.security-finding { display: grid; gap: 3px; padding: 10px; border: 1px solid #f1cccc; border-radius: 9px; background: #fffafa; }
+.security-finding strong { color: var(--red); font-size: 12px; }
+.security-finding span { color: var(--muted); font-size: 11px; }
+.security-finding code { overflow: auto; color: #6d3333; font-size: 11px; white-space: pre-wrap; }
 .footer { padding: 26px 5vw; color: var(--muted); text-align: center; font-size: 12px; }
 @media (max-width: 850px) { .hero { align-items: start; flex-direction: column; } .grid.stats, .grid.cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .nav a, .nav button { padding: 7px; font-size: 12px; } }
 @media (max-width: 540px) { .topbar { height: auto; min-height: 68px; padding: 13px 4vw; align-items: start; gap: 8px; flex-direction: column; } .nav { flex-wrap: wrap; } .main { padding: 30px 4vw 50px; } .grid.stats, .grid.cards { grid-template-columns: 1fr; } .card { padding: 18px; } .graph-head { align-items: start; flex-direction: column; } .graph-actions { justify-content: start; } .graph-toolbar { align-items: start; flex-direction: column; } .graph-summary { text-align: left; } .architecture-blueprint { padding: 13px; } .architecture-blueprint-head { align-items: start; flex-direction: column; gap: 3px; } .architecture-main-flow { align-items: stretch; flex-direction: column; } .architecture-connector { align-self: center; flex-basis: 34px; transform: none; } .architecture-connector b { transform: rotate(90deg); } .architecture-connector small { width: auto; } .architecture-support-grid { grid-template-columns: 1fr; } .dependency-graph { min-height: 430px; } }

@@ -158,11 +158,18 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
 
 ### Phase 4 — Production and advanced capabilities
 
-Phase 4 is active. The first user-facing slice in this phase is now complete:
+Phase 4 is active. The first user-facing slices in this phase are now complete:
 the redesigned chat records Helpful/Not helpful ratings through the existing
-protected feedback endpoint, and repository detail displays the aggregate
-helpful rate. The next no-cost slice is a compact observability view built from
-the existing query metrics, usage, health, and feedback endpoints.
+protected feedback endpoint, repository detail displays the aggregate helpful
+rate and redacted security quick check, and Account includes a compact
+observability view built from the existing query metrics, usage, health, and
+feedback endpoints.
+
+The observability slice is now implemented in the redesigned Account page, and
+the repository page exposes the existing opt-in redacted secret scan. Remaining
+Phase 4 work is the deeper infrastructure layer: structured logs/traces, static
+security analyzers, cross-repository/version-aware intelligence, agent tooling,
+and Django database-parity verification.
 
 #### Active redesign migration
 

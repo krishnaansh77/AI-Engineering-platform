@@ -38,7 +38,10 @@
   screens so the structure remains readable without wasting space.
 - Phase 4 feedback-loop work has started: the JavaScript chat now records
   Helpful/Not helpful answer ratings, and repository detail exposes the current
-  helpful-rate summary. Next priority is a compact no-cost observability view.
+  helpful-rate summary.
+- The no-cost observability view is now live on Account, aggregating health,
+  query latency, token usage, estimated cost, and feedback across repositories.
+  Repository detail also exposes the opt-in redacted heuristic secret scan.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
