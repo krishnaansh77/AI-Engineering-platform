@@ -224,6 +224,41 @@ async def search_all_repositories(
     return {"query": q, "repositories_searched": len(repositories), "results": matches[:20]}
 
 
+@router.get("/graph/cross-repository")
+async def get_cross_repository_dependency_graph(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Build a user-scoped direct dependency map from repository manifests."""
+    memberships = await db.scalars(select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user.id))
+    workspace_ids = list(memberships.all())
+    visibility = or_(Repository.owner_id == user.id, Repository.workspace_id.in_(workspace_ids)) if workspace_ids else Repository.owner_id == user.id
+    result = await db.execute(
+        select(Repository).where(Repository.status == "ready", Repository.clone_path.isnot(None), visibility)
+        .order_by(desc(Repository.created_at)).limit(30)
+    )
+    repositories = list(result.scalars().all())
+    nodes = []
+    packages_by_repo: dict[uuid.UUID, set[str]] = {}
+    dependencies_by_repo: dict[uuid.UUID, set[str]] = {}
+    package_owners: dict[str, list[Repository]] = {}
+    for repository in repositories:
+        identities, dependencies = repository_packages(repository.clone_path)
+        identities.add(_normalize_package_name(repository.full_name.rsplit("/", 1)[-1]))
+        packages_by_repo[repository.id] = identities
+        dependencies_by_repo[repository.id] = dependencies
+        for identity in identities:
+            package_owners.setdefault(identity, []).append(repository)
+        nodes.append({"id": str(repository.id), "name": repository.name, "full_name": repository.full_name, "packages": sorted(identities)})
+    edges = []
+    for consumer in repositories:
+        for dependency in sorted(dependencies_by_repo[consumer.id]):
+            for provider in package_owners.get(dependency, []):
+                if provider.id != consumer.id:
+                    edges.append({"source": str(consumer.id), "target": str(provider.id), "package": dependency, "evidence": "declared manifest dependency"})
+    return {"nodes": nodes, "edges": edges[:200], "repository_count": len(nodes), "edge_count": min(len(edges), 200), "note": "Edges represent declared package-name matches only; they do not prove runtime calls or shared API compatibility."}
+
+
 @router.get("/{repo_id}/impact/cross-repository", dependencies=[Depends(require_repository_access)])
 async def cross_repository_impact(
     repo_id: uuid.UUID,

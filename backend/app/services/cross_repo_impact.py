@@ -34,12 +34,12 @@ def repository_packages(root_path: str) -> tuple[set[str], set[str]]:
                 identities.add(_normalize(section["name"]))
             raw = section.get("dependencies", {})
             if isinstance(raw, list):
-                dependencies.update(_normalize(re.split(r"[<>=!~\[]", item, 1)[0]) for item in raw)
+                dependencies.update(_normalize(re.split(r"[<>=!~\[]", item, maxsplit=1)[0]) for item in raw)
             elif isinstance(raw, dict):
                 dependencies.update(_normalize(name) for name in raw)
             optional = data.get("project", {}).get("optional-dependencies", {})
             for group in optional.values():
-                dependencies.update(_normalize(re.split(r"[<>=!~\[]", item, 1)[0]) for item in group)
+                dependencies.update(_normalize(re.split(r"[<>=!~\[]", item, maxsplit=1)[0]) for item in group)
         except (OSError, ValueError, tomllib.TOMLDecodeError):
             pass
     for manifest in (root / "requirements.txt", root / "requirements.in"):
@@ -48,7 +48,7 @@ def repository_packages(root_path: str) -> tuple[set[str], set[str]]:
                 for line in manifest.read_text(encoding="utf-8").splitlines():
                     line = line.split("#", 1)[0].strip()
                     if line and not line.startswith(("-", ".", "/")):
-                        dependencies.add(_normalize(re.split(r"[<>=!~\[]", line, 1)[0]))
+                        dependencies.add(_normalize(re.split(r"[<>=!~\[]", line, maxsplit=1)[0]))
             except OSError:
                 pass
     return identities, {item for item in dependencies if item}

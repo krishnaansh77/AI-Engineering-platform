@@ -258,6 +258,9 @@ and should remain on Railway or an equivalent service.
   and remediation guidance alongside redacted code context and file location.
 - [x] Repository dashboard now lets authorized users evaluate a question against
   expected files and displays Recall@K, MRR, hit rate, latency, and retrieved files.
+- [x] Workspace dashboard now displays direct declared package dependencies
+  between accessible ready repositories, with links and evidence labels. Two
+  focused manifest extraction tests cover Node and Python package metadata.
 - [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before

@@ -370,7 +370,7 @@
 ### 4.5 — Multi-Repository Support (#20)
 
 - [x] Workspace-scoped repository ownership and membership foundation
-- [ ] Cross-repo dependency graph
+- [x] Manifest-based cross-repository package dependency map; AST-level links remain future work
 - [x] Cross-repository hybrid code search for accessible ready repositories
 - [x] Manifest-based downstream impact candidates across accessible repositories
 

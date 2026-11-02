@@ -66,6 +66,9 @@
   remediation recommendation; values remain redacted in the API and interface.
 - Repository detail now offers a retrieval evaluation form and displays real
   endpoint metrics and expected/retrieved file comparisons without generating an LLM answer.
+- Dashboard now visualizes manifest-declared package edges between accessible
+  ready repositories; results are explicitly limited to package-name evidence.
+  Node and Python manifest extraction tests pass.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
