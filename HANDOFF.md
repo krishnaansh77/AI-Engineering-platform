@@ -240,10 +240,9 @@ and should remain on Railway or an equivalent service.
 - [x] Added structured JSON request logs, safe correlation IDs, response headers,
   and request duration/status fields without adding paid infrastructure.
 - [x] Added a CI static security job that runs Bandit high-confidence checks on
-  backend Python source.
+  backend Python source and security-focused ESLint rules on the redesigned JS.
 - [ ] Phase 4 next: add OpenTelemetry-compatible tracing and a trace viewer/export
-  path, keeping the no-cost deployment constraint. Frontend ESLint security rules
-  are also still open.
+  path, keeping the no-cost deployment constraint.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
   attempting any production API cutover; the current Railway free-plan limit
   still blocks provisioning a separate Django service.

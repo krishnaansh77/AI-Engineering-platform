@@ -396,7 +396,7 @@
 
 - [x] Opt-in heuristic secret scan with redacted findings and an accessible V2 repository UI
 - [x] Run Bandit high-confidence checks on backend Python source in CI
-- [ ] Add ESLint security rules for the vanilla JavaScript frontend
+- [x] Add ESLint security rules for the vanilla JavaScript frontend in CI
 - [ ] Display findings with: location, why it matters, relevant code, suggested fix
 
 ---

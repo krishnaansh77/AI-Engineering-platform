@@ -64,6 +64,20 @@ jobs:
         run: python -m pip install bandit==1.8.6
       - name: Scan backend Python source
         run: bandit -r backend/app -ll -x backend/app/__pycache__
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Install JavaScript security linter
+        run: npm install --no-save --package-lock=false eslint@8.57.1 eslint-plugin-security@3.0.1
+      - name: Scan redesigned JavaScript frontend
+        run: >-
+          npx eslint --no-eslintrc --env browser,es2021
+          --parser-options '{"ecmaVersion":2022,"sourceType":"module"}'
+          --plugin security
+          --rule 'security/detect-eval-with-expression:error'
+          --rule 'security/detect-non-literal-regexp:error'
+          --rule 'security/detect-unsafe-regex:error'
+          frontend_v2/app.js
 
   benchmark-template:
     name: Validate RAG benchmark template
