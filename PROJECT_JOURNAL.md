@@ -64,6 +64,8 @@
   focused agent planner/tool-failure tests pass.
 - Secret-scan findings now include type-specific impact explanations and a safe
   remediation recommendation; values remain redacted in the API and interface.
+- Repository detail now offers a retrieval evaluation form and displays real
+  endpoint metrics and expected/retrieved file comparisons without generating an LLM answer.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---

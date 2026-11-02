@@ -355,7 +355,7 @@
 - [x] Build eval dataset: question → expected citations
 - [x] Measure: Recall@K, MRR, expected-file hit rate, latency, and citation coverage
 - [x] Run eval suite in CI against the seeded retrieval database
-- [ ] Display eval results in admin dashboard
+- [x] Display on-demand retrieval evaluation results on repository dashboard
 
 ---
 

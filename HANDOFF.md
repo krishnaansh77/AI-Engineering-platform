@@ -256,6 +256,8 @@ and should remain on Railway or an equivalent service.
   pass. Specialized sub-agents and LangGraph remain open.
 - [x] Security quick check now returns and displays finding-specific rationale
   and remediation guidance alongside redacted code context and file location.
+- [x] Repository dashboard now lets authorized users evaluate a question against
+  expected files and displays Recall@K, MRR, hit rate, latency, and retrieved files.
 - [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
