@@ -440,10 +440,14 @@ function renderVersionComparison(comparison) {
     };
     const citation = `${citationFor(change.base_citation, base)}${citationFor(change.head_citation, head)}`;
     const diff = change.diff ? `<pre class="version-diff">${escapeHtml(change.diff)}</pre>` : `<p class="muted">${escapeHtml(change.omitted_reason || "No text diff available.")}</p>`;
-    return `<details class="version-change"><summary><strong>${escapeHtml(change.file_path)}</strong><span class="version-change-status">${escapeHtml(change.status)}</span></summary>${citation}${diff}</details>`;
+    const symbols = (items) => items.length ? items.map((item) => `${item.symbol_name || item.chunk_type} (lines ${item.start_line}–${item.end_line})`).join(", ") : "No indexed symbols";
+    const symbolSummary = `<p class="version-symbols"><strong>Symbols before:</strong> ${escapeHtml(symbols(change.symbols_before || []))}<br/><strong>Symbols after:</strong> ${escapeHtml(symbols(change.symbols_after || []))}</p>`;
+    return `<details class="version-change"><summary><strong>${escapeHtml(change.file_path)}</strong><span class="version-change-status">${escapeHtml(change.status)}</span></summary>${citation}${symbolSummary}${diff}</details>`;
   }).join("");
   const limitNote = comparison.truncated ? `<p class="muted">Some file contents were omitted by the display limit. The changed-file count still includes them.</p>` : "";
-  return `<div class="version-compare-summary"><strong>${comparison.changed_file_count} changed ${comparison.changed_file_count === 1 ? "file" : "files"}</strong><span>${escapeHtml(base)} → ${escapeHtml(head)}</span></div>${limitNote}${files || `<p class="muted">These indexed versions contain identical files.</p>`}`;
+  const impact = comparison.dependency_impact;
+  const impactPanel = impact ? `<div class="version-impact"><strong>Files that depend on changed code</strong><span>${escapeHtml(base)}: ${impact.base.count} candidate files</span><span>${escapeHtml(head)}: ${impact.head.count} candidate files</span>${impact.base.files.length || impact.head.files.length ? `<small>${escapeHtml([...new Set([...impact.base.files, ...impact.head.files])].slice(0, 20).join(" · "))}</small>` : `<small>No dependency links to changed files were found.</small>`}</div>` : "";
+  return `<div class="version-compare-summary"><strong>${comparison.changed_file_count} changed ${comparison.changed_file_count === 1 ? "file" : "files"}</strong><span>${escapeHtml(base)} → ${escapeHtml(head)}</span></div>${impactPanel}${limitNote}${files || `<p class="muted">These indexed versions contain identical files.</p>`}`;
 }
 
 async function runSecurityScan(button) {

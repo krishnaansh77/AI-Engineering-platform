@@ -279,8 +279,8 @@ and should remain on Railway or an equivalent service.
   avoids embedding unchanged files again.
 - [x] Added a zero-LLM-cost compare view for two indexed refs. It displays
   bounded unified diffs, added/removed/modified files, and base/head line-range
-  citations. The UI and `/repos/{id}/versions/compare` route are in the latest
-  change; local Git tests cover branch/tag comparison.
+  citations, symbols found in each version, and downstream file candidates from
+  each version's dependency graph. Local Git tests cover branch/tag comparison.
 - [ ] Phase 4 next: extend comparison into symbol-aware change explanations and
   dependency impact across versions. Django production cutover remains blocked
   by Railway capacity.

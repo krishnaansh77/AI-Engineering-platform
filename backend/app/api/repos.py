@@ -35,6 +35,7 @@ from app.config import settings
 from app.models.repository import Repository
 from app.models.repository_version import RepositoryVersion
 from app.models.source_file import SourceFile
+from app.models.code_chunk import CodeChunk
 from app.models.query_feedback import QueryFeedback
 from app.models.query_event import QueryEvent
 from app.services.indexing_service import IndexingService
@@ -292,10 +293,62 @@ async def compare_repository_versions(
 
     base_version, _ = refs[payload.base_ref]
     head_version, _ = refs[payload.head_ref]
+    changed_paths = comparison.pop("changed_paths", [])
+    visible_paths = changed_paths[:30]
+    symbol_details = {}
+    for version_ref, key in ((payload.base_ref, "symbols_before"), (payload.head_ref, "symbols_after")):
+        if not visible_paths:
+            continue
+        symbol_rows = await db.execute(
+            select(
+                CodeChunk.file_path,
+                CodeChunk.symbol_name,
+                CodeChunk.chunk_type,
+                CodeChunk.start_line,
+                CodeChunk.end_line,
+            )
+            .where(
+                CodeChunk.repository_id == repo_id,
+                CodeChunk.version_ref == version_ref,
+                CodeChunk.file_path.in_(visible_paths),
+            )
+            .order_by(CodeChunk.file_path, CodeChunk.start_line)
+        )
+        by_path = {}
+        for file_path, symbol_name, chunk_type, start_line, end_line in symbol_rows.all():
+            entries = by_path.setdefault(file_path, [])
+            if len(entries) < 8:
+                entries.append({
+                    "symbol_name": symbol_name,
+                    "chunk_type": chunk_type,
+                    "start_line": start_line,
+                    "end_line": end_line,
+                })
+        symbol_details[key] = by_path
+    for change in comparison["changes"]:
+        change["symbols_before"] = symbol_details.get("symbols_before", {}).get(change["file_path"], [])
+        change["symbols_after"] = symbol_details.get("symbols_after", {}).get(change["file_path"], [])
+
+    impacts = {}
+    for version_ref, impact_key in ((payload.base_ref, "base"), (payload.head_ref, "head")):
+        graph = await DependencyGraphService().build_file_graph(repo_id, db, version_ref=version_ref)
+        graph_paths = {node["id"] for node in graph["nodes"]}
+        changed_in_graph = set(changed_paths) & graph_paths
+        impacted = sorted(
+            set(DependencyGraphService.expand_dependents(changed_in_graph, graph["edges"]))
+            - changed_in_graph
+        )
+        impacts[impact_key] = {
+            "count": len(impacted),
+            "files": impacted[:40],
+            "truncated": len(impacted) > 40,
+        }
+
     return {
         "repository_id": str(repo_id),
         "base_version": {"version_ref": payload.base_ref, "commit_sha": base_version.commit_sha},
         "head_version": {"version_ref": payload.head_ref, "commit_sha": head_version.commit_sha},
+        "dependency_impact": impacts,
         **comparison,
     }
 

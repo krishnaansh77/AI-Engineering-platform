@@ -503,6 +503,7 @@ class GitHubService:
         return {
             "base_sha": base_commit.hexsha,
             "head_sha": head_commit.hexsha,
+            "changed_paths": changed_paths,
             "changed_file_count": len(changed_paths),
             "shown_file_count": len(changes),
             "truncated": len(changed_paths) > len(changes)
