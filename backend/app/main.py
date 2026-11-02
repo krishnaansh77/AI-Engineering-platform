@@ -63,7 +63,7 @@ else:
 logger = logging.getLogger("aise")
 request_logger = logging.getLogger("aise.request")
 _tracer_provider: TracerProvider | None = None
-EXPECTED_MIGRATION_REVISION = "008_backfill_repository_stats"
+EXPECTED_MIGRATION_REVISION = "009_repository_versions"
 _migration_startup_error: str | None = None
 
 

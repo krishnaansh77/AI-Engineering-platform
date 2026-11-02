@@ -40,10 +40,25 @@ class RepositoryAgent:
             tools.append("get_file")
         return tools
 
-    async def run(self, repo: Repository, question: str, db: AsyncSession, top_k: int) -> tuple[list, list[dict]]:
+    async def run(
+        self,
+        repo: Repository,
+        question: str,
+        db: AsyncSession,
+        top_k: int,
+        version_ref: str = "default",
+    ) -> tuple[list, list[dict]]:
         from app.services.github_service import GitHubService
         from app.services.graph_service import DependencyGraphService
         from app.services.retrieval_service import RetrievalService
+        from app.models.repository_version import RepositoryVersion
+        from sqlalchemy import select
+
+        version = await db.scalar(select(RepositoryVersion).where(
+            RepositoryVersion.repository_id == repo.id,
+            RepositoryVersion.version_ref == version_ref,
+        ))
+        clone_path = repo.clone_path if version_ref == "default" else (version.clone_path if version else None)
 
         tools = self.plan_tools(question)
         path_match = re.search(r"(?:[\w.-]+/)+[\w.-]+\.[A-Za-z0-9]+", question)
@@ -51,7 +66,12 @@ class RepositoryAgent:
             tools.append("get_file")
 
         retrieved = await RetrievalService().retrieve(
-            query=question, repo_id=repo.id, db=db, top_k=20, final_k=top_k
+            query=question,
+            repo_id=repo.id,
+            db=db,
+            top_k=20,
+            final_k=top_k,
+            version_ref=version_ref,
         )
         evidence: list[dict] = [{
             "tool": "search_code",
@@ -62,15 +82,15 @@ class RepositoryAgent:
                 "snippet": chunk.content[:1800],
             } for chunk in retrieved],
         }]
-        if "get_history" in tools and repo.clone_path:
+        if "get_history" in tools and clone_path:
             evidence.append(await run_optional_tool(
                 "get_history",
-                lambda: {"commits": GitHubService().get_commit_history(repo.clone_path, 5)},
+                lambda: {"commits": GitHubService().get_commit_history(clone_path, 5)},
             ))
-        if "get_impact" in tools and repo.clone_path:
+        if "get_impact" in tools and clone_path:
             try:
-                graph = await DependencyGraphService().build_file_graph(repo.id, db)
-                latest = GitHubService().analyze_latest_commit(repo.clone_path)
+                graph = await DependencyGraphService().build_file_graph(repo.id, db, version_ref=version_ref)
+                latest = GitHubService().analyze_latest_commit(clone_path)
                 changed = set(latest.get("source_files", latest.get("changed_files", [])))
                 changed.intersection_update(node["id"] for node in graph["nodes"])
                 impact = sorted(DependencyGraphService.expand_dependents(changed, graph["edges"]))
@@ -79,11 +99,11 @@ class RepositoryAgent:
                 evidence.append({"tool": "get_impact", "error": "Recent change impact is unavailable."})
         if "get_tests" in tools:
             async def get_test_summary():
-                return await DependencyGraphService().build_test_summary(repo.id, db)
+                return await DependencyGraphService().build_test_summary(repo.id, db, version_ref=version_ref)
             evidence.append(await run_optional_tool("get_tests", get_test_summary))
-        if "get_file" in tools and repo.clone_path:
+        if "get_file" in tools and clone_path:
             try:
-                source = GitHubService().read_source_file(repo.clone_path, path_match.group(0), max_bytes=12_000)
+                source = GitHubService().read_source_file(clone_path, path_match.group(0), max_bytes=12_000)
                 evidence.append({"tool": "get_file", "file_path": source["file_path"], "content": source["content"][:8000]})
             except (FileNotFoundError, ValueError):
                 evidence.append({"tool": "get_file", "error": "The requested path was not found in the indexed repository."})

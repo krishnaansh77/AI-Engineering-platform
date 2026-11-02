@@ -272,7 +272,12 @@ and should remain on Railway or an equivalent service.
 - [x] Added opt-in model routing for short, direct code lookups. It defaults off,
   uses a configured provider-specific model and a 512-token cap, and leaves
   synthesis questions on the primary model.
-- [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
+- [x] Added branch/tag-aware indexing and version-scoped retrieval. Migration
+  `009_repository_versions` backfills existing indexes as `default`; branch and
+  tag clones, file/chunk records, query cache entries, agent tools, graph data,
+  and chat selection keep each version isolated. Version comparison remains open.
+- [ ] Phase 4 next: answer “how did this change between versions?” with cited
+  diffs. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
   attempting any production API cutover; the current Railway free-plan limit

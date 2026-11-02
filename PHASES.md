@@ -386,8 +386,8 @@
 
 ### 4.7 — Version-Aware RAG (#21)
 
-- [ ] Index multiple branches/tags
-- [ ] Answer queries scoped to a specific version
+- [x] Index branches/tags into separate shallow clones and version-scoped chunks
+- [x] Answer Q&A and agent requests against a selected indexed version
 - [ ] "How did X change from v1 to v2?"
 
 ---

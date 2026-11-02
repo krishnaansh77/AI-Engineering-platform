@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import List, Optional
-from sqlalchemy import String, DateTime, Integer, Text, JSON, ForeignKey, func
+from sqlalchemy import Index, String, DateTime, Integer, Text, JSON, ForeignKey, func
 from sqlalchemy.orm import Mapped, mapped_column
 from pgvector.sqlalchemy import Vector
 from app.database import Base
@@ -12,6 +12,7 @@ class CodeChunk(Base):
     """A semantically meaningful chunk of code with its embedding vector."""
 
     __tablename__ = "code_chunks"
+    __table_args__ = (Index("ix_code_chunks_repository_version", "repository_id", "version_ref"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         primary_key=True, default=uuid.uuid4, index=True
@@ -19,6 +20,7 @@ class CodeChunk(Base):
     repository_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("repositories.id", ondelete="CASCADE"), index=True
     )
+    version_ref: Mapped[str] = mapped_column(String(255), nullable=False, default="default", index=True)
     file_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("source_files.id", ondelete="CASCADE"), index=True
     )

@@ -1,6 +1,6 @@
 const app = document.querySelector("#app");
 const API_BASE = window.__AISE_API_BASE__ || "/api";
-const state = { user: null, authMode: "login", loading: false, graphData: null, graphRepoId: null, graphMode: "connected", graphView: "story", storyMap: null, storyStage: null, chatAnswer: null, cy: null, refreshTimer: null };
+const state = { user: null, authMode: "login", loading: false, graphData: null, graphRepoId: null, graphMode: "connected", graphView: "story", storyMap: null, storyStage: null, chatAnswer: null, selectedVersion: "default", cy: null, refreshTimer: null, versionPollTimer: null };
 
 const escapeHtml = (value = "") => String(value).replace(/[&<>'"]/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" }[char]));
 const token = () => localStorage.getItem("aise_access_token");
@@ -342,7 +342,41 @@ function mountDependencyGraph() {
 
 function renderChatAnswer(question, answer) {
   const citations = (answer.citations || []).map((citation) => `<span class="citation">${escapeHtml(citation.file_path)}:${citation.start_line}-${citation.end_line}</span>`).join("");
-  return `<div class="message"><p>${escapeHtml(answer.answer).replace(/\n/g, "<br />")}</p><p class="muted">${escapeHtml(answer.model)} · ${answer.retrieval_count} retrieved chunks · ${(answer.citation_coverage * 100).toFixed(0)}% citation coverage${answer.tools_used?.length ? ` · Tools: ${answer.tools_used.map(escapeHtml).join(", ")}` : ""}</p><div>${citations}</div><div class="chat-feedback" role="group" aria-label="Answer feedback"><span>Was this answer helpful?</span><button class="feedback-button" data-action="answer-feedback" data-rating="helpful" type="button" aria-label="Mark answer helpful">👍 Helpful</button><button class="feedback-button" data-action="answer-feedback" data-rating="not_helpful" type="button" aria-label="Mark answer not helpful">👎 Not helpful</button><span id="feedback-status" class="feedback-status" role="status" aria-live="polite"></span></div></div>`;
+  return `<div class="message"><p>${escapeHtml(answer.answer).replace(/\n/g, "<br />")}</p><p class="muted">Version ${escapeHtml(answer.version_ref || "default")} · ${escapeHtml(answer.model)} · ${answer.retrieval_count} retrieved chunks · ${(answer.citation_coverage * 100).toFixed(0)}% citation coverage${answer.tools_used?.length ? ` · Tools: ${answer.tools_used.map(escapeHtml).join(", ")}` : ""}</p><div>${citations}</div><div class="chat-feedback" role="group" aria-label="Answer feedback"><span>Was this answer helpful?</span><button class="feedback-button" data-action="answer-feedback" data-rating="helpful" type="button" aria-label="Mark answer helpful">👍 Helpful</button><button class="feedback-button" data-action="answer-feedback" data-rating="not_helpful" type="button" aria-label="Mark answer not helpful">👎 Not helpful</button><span id="feedback-status" class="feedback-status" role="status" aria-live="polite"></span></div></div>`;
+}
+
+async function loadChatVersions(repoId, preferredVersion = state.selectedVersion) {
+  const picker = document.querySelector("#chat-version");
+  const status = document.querySelector("#version-status");
+  if (!picker || !status) return;
+  try {
+    const versions = await api(`/repos/${repoId}/versions`);
+    if (location.hash !== `#chat/${repoId}`) return;
+    picker.innerHTML = versions.map((version) => {
+      const label = version.version_ref === "default"
+        ? `Default branch · ${version.ref_name}`
+        : `${version.ref_type} · ${version.ref_name}`;
+      const availability = version.status === "ready" ? "ready" : version.status;
+      return `<option value="${escapeHtml(version.version_ref)}" ${version.status === "ready" ? "" : "disabled"}>${escapeHtml(label)} · ${escapeHtml(availability)}</option>`;
+    }).join("");
+    const selected = versions.find((version) => version.version_ref === preferredVersion && version.status === "ready")
+      || versions.find((version) => version.version_ref === "default" && version.status === "ready");
+    if (selected) {
+      picker.value = selected.version_ref;
+      state.selectedVersion = selected.version_ref;
+    }
+    const inProgress = versions.some((version) => ["pending", "indexing"].includes(version.status));
+    const failed = versions.find((version) => version.version_ref === preferredVersion && version.status === "error");
+    status.textContent = failed?.error_message || (inProgress ? "A version is indexing. This list refreshes automatically." : "Only indexed versions can be queried.");
+    if (inProgress && !state.versionPollTimer) {
+      state.versionPollTimer = window.setTimeout(() => {
+        state.versionPollTimer = null;
+        loadChatVersions(repoId, preferredVersion);
+      }, 2500);
+    }
+  } catch (error) {
+    status.textContent = `Could not load versions: ${error.message}`;
+  }
 }
 
 async function submitAnswerFeedback(button) {
@@ -373,7 +407,7 @@ async function submitAnswerFeedback(button) {
 
 function chatView(id) {
   if (!token()) return authView();
-  return shell(`<div class="chat"><div><a class="muted" href="#repo/${id}">← Back to repository</a><p class="eyebrow" style="margin-top:28px">Cited code Q&A</p><h1 style="font-size:38px">Ask the codebase.</h1><p class="lede" style="font-size:14px">Use direct cited Q&A, or let the bounded agent choose repository tools for history, impact, tests, and source.</p></div><div id="chat-log"></div><form id="chat-form" class="card"><div class="form-row"><label for="question">Your question</label><textarea id="question" name="question" placeholder="Where is authentication implemented, and what calls it?" required></textarea></div><div class="actions"><button class="button primary" type="submit">Ask with citations</button><button class="button secondary" data-action="ask-agent" type="button">Ask agent with tools</button></div></form></div>`);
+  return shell(`<div class="chat"><div><a class="muted" href="#repo/${id}">← Back to repository</a><p class="eyebrow" style="margin-top:28px">Cited code Q&A</p><h1 style="font-size:38px">Ask the codebase.</h1><p class="lede" style="font-size:14px">Choose an indexed branch or tag for version-specific answers and citations.</p></div><div id="chat-log"></div><form id="chat-form" class="card"><div class="form-row"><label for="chat-version">Answer from this version</label><select id="chat-version" name="version_ref"><option value="default">Loading indexed versions…</option></select><small id="version-status" class="muted" role="status" aria-live="polite">Loading version list…</small></div><div class="version-index-form"><strong>Index another branch or tag</strong><div class="version-index-fields"><label><span class="sr-only">Reference type</span><select id="version-ref-type" name="ref_type"><option value="branch">Branch</option><option value="tag">Tag</option></select></label><label class="sr-only" for="version-ref-name">Branch or tag name</label><input id="version-ref-name" name="ref_name" maxlength="200" placeholder="feature/new-search or v1.2.0"/><button class="button secondary" data-action="index-version" type="button">Index version</button></div></div><div class="form-row"><label for="question">Your question</label><textarea id="question" name="question" placeholder="Where is authentication implemented, and what calls it?" required></textarea></div><div class="actions"><button class="button primary" type="submit">Ask with citations</button><button class="button secondary" data-action="ask-agent" type="button">Ask agent with tools</button></div></form></div>`);
 }
 
 async function runSecurityScan(button) {
@@ -432,7 +466,9 @@ function docsView() { return shell(`<div class="hero"><div><p class="eyebrow">Pr
 async function render() {
   const hash = location.hash.replace(/^#/, "") || "dashboard";
   if (state.refreshTimer) window.clearTimeout(state.refreshTimer);
+  if (state.versionPollTimer) window.clearTimeout(state.versionPollTimer);
   state.refreshTimer = null;
+  state.versionPollTimer = null;
   state.cy?.destroy();
   state.cy = null;
   state.graphData = null;
@@ -446,6 +482,7 @@ async function render() {
   else if (hash.startsWith("chat/")) app.innerHTML = chatView(hash.split("/")[1]);
   else if (hash.startsWith("source/")) { const parts = hash.split("/"); app.innerHTML = await sourceView(parts[1], parts.slice(2).join("/")); }
   else app.innerHTML = await dashboard();
+  if (hash.startsWith("chat/")) await loadChatVersions(hash.split("/")[1]);
   bindEvents();
   if (hash.startsWith("repo/") && state.storyStage) showStoryStage(state.storyStage);
   mountDependencyGraph();
@@ -461,6 +498,7 @@ async function submitAgentQuestion(button) {
   const question = String(new FormData(form).get("question") || "").trim();
   if (!question) { form.querySelector("textarea").focus(); return; }
   const log = document.querySelector("#chat-log");
+  const versionRef = document.querySelector("#chat-version")?.value || "default";
   const sendButton = form.querySelector("button[type='submit']");
   button.disabled = true;
   sendButton.disabled = true;
@@ -468,8 +506,8 @@ async function submitAgentQuestion(button) {
   state.chatAnswer = null;
   log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${setLoading("Selecting repository tools and collecting evidence…")}`;
   try {
-    const response = await api(`/repos/${location.hash.split("/")[1]}/agent`, { method: "POST", body: JSON.stringify({ question, top_k: 5 }) });
-    state.chatAnswer = { question, model: response.model, retrieval_count: response.retrieval_count, citations: response.citations || [] };
+    const response = await api(`/repos/${location.hash.split("/")[1]}/agent`, { method: "POST", body: JSON.stringify({ question, top_k: 5, version_ref: versionRef }) });
+    state.chatAnswer = { question, model: response.model, retrieval_count: response.retrieval_count, citations: response.citations || [], version_ref: response.version_ref };
     log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${renderChatAnswer(question, response)}`;
     document.querySelectorAll("[data-action='answer-feedback']").forEach((control) => control.addEventListener("click", () => submitAnswerFeedback(control)));
   } catch (error) {
@@ -483,6 +521,26 @@ async function submitAgentQuestion(button) {
 
 function bindEvents() {
   document.querySelector("[data-action='ask-agent']")?.addEventListener("click", (event) => submitAgentQuestion(event.currentTarget));
+  document.querySelector("#chat-version")?.addEventListener("change", (event) => { state.selectedVersion = event.currentTarget.value; });
+  document.querySelector("[data-action='index-version']")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const refName = document.querySelector("#version-ref-name").value.trim();
+    const refType = document.querySelector("#version-ref-type").value;
+    const status = document.querySelector("#version-status");
+    if (!refName) { document.querySelector("#version-ref-name").focus(); status.textContent = "Enter a branch or tag name first."; return; }
+    button.disabled = true;
+    button.textContent = "Starting…";
+    try {
+      const response = await api(`/repos/${location.hash.split("/")[1]}/versions/index`, { method: "POST", body: JSON.stringify({ ref_type: refType, ref_name: refName }) });
+      state.selectedVersion = response.version_ref;
+      await loadChatVersions(location.hash.split("/")[1], response.version_ref);
+    } catch (error) {
+      status.textContent = `Could not index version: ${error.message}`;
+    } finally {
+      button.disabled = false;
+      button.textContent = "Index version";
+    }
+  });
   document.querySelector("[data-action='evaluation-form']")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -573,7 +631,7 @@ function bindEvents() {
   }));
   document.querySelector("#graph-selection")?.addEventListener("click", (event) => { const button = event.target.closest("[data-action='graph-preview']"); if (button) location.hash = `source/${button.dataset.id}/${button.dataset.path}`; });
   document.querySelectorAll("[data-action='answer-feedback']").forEach((button) => button.addEventListener("click", () => submitAnswerFeedback(button)));
-  document.querySelector("#chat-form")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const id = location.hash.split("/")[1]; const question = String(form.get("question") || "").trim(); const log = document.querySelector("#chat-log"); log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${setLoading("Retrieving and synthesizing cited code…")}`; event.currentTarget.querySelector("button").disabled = true; state.chatAnswer = null; try { const answer = await api(`/repos/${id}/query`, { method: "POST", body: JSON.stringify({ question, top_k: 5 }) }); state.chatAnswer = { question, model: answer.model, retrieval_count: answer.retrieval_count, citations: answer.citations || [] }; log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${renderChatAnswer(question, answer)}`; document.querySelectorAll("[data-action='answer-feedback']").forEach((button) => button.addEventListener("click", () => submitAnswerFeedback(button))); } catch (error) { log.innerHTML = errorBox(error.message); } finally { event.currentTarget.querySelector("button").disabled = false; } });
+  document.querySelector("#chat-form")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); const id = location.hash.split("/")[1]; const question = String(form.get("question") || "").trim(); const versionRef = String(form.get("version_ref") || "default"); const log = document.querySelector("#chat-log"); log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${setLoading("Retrieving and synthesizing cited code…")}`; event.currentTarget.querySelector("button[type='submit']").disabled = true; state.chatAnswer = null; try { const answer = await api(`/repos/${id}/query`, { method: "POST", body: JSON.stringify({ question, top_k: 5, version_ref: versionRef }) }); state.chatAnswer = { question, model: answer.model, retrieval_count: answer.retrieval_count, citations: answer.citations || [], version_ref: answer.version_ref }; log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${renderChatAnswer(question, answer)}`; document.querySelectorAll("[data-action='answer-feedback']").forEach((button) => button.addEventListener("click", () => submitAnswerFeedback(button))); } catch (error) { log.innerHTML = errorBox(error.message); } finally { event.currentTarget.querySelector("button[type='submit']").disabled = false; } });
 }
 
 window.addEventListener("hashchange", render);

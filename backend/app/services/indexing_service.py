@@ -1,5 +1,6 @@
 """Repository indexing pipeline orchestrator."""
 import logging
+import os
 import uuid
 from datetime import datetime, timezone
 from typing import Dict, List, Optional
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.models.code_chunk import CodeChunk
 from app.models.repository import Repository
+from app.models.repository_version import RepositoryVersion
 from app.models.source_file import SourceFile
 from app.services.embedding_service import EmbeddingService
 from app.services.github_service import GitHubService
@@ -25,6 +27,18 @@ def _is_embedding_quota_error(error: Exception) -> bool:
     return any(marker in message for marker in ("resource_exhausted", "quota", "rate limit", "429"))
 
 
+def _chunk_identity(chunk) -> tuple:
+    """Stable parser identity used to safely reuse an unchanged file's vectors."""
+    return (
+        chunk.chunk_type,
+        chunk.symbol_name,
+        chunk.parent_symbol,
+        chunk.start_line,
+        chunk.end_line,
+        chunk.content,
+    )
+
+
 class IndexingService:
     """Orchestrates cloning, parsing, chunking, embedding, and storage for repositories."""
 
@@ -38,8 +52,55 @@ class IndexingService:
         self.parser_service = parser_service or ParserService()
         self.embedding_service = embedding_service or EmbeddingService()
 
-    async def index_repository(self, repo_id: uuid.UUID, db: AsyncSession) -> None:
-        """Run the complete end-to-end indexing pipeline for a repository."""
+    async def _reuse_cross_version_embeddings(
+        self,
+        repo_id: uuid.UUID,
+        version_ref: str,
+        file_path: str,
+        content_hash: str,
+        parsed_chunks: list,
+        db: AsyncSession,
+    ) -> Optional[List[List[float]]]:
+        """Reuse vectors for byte-identical files indexed under another ref."""
+        source_file = await db.scalar(
+            select(SourceFile)
+            .where(
+                SourceFile.repository_id == repo_id,
+                SourceFile.version_ref != version_ref,
+                SourceFile.file_path == file_path,
+                SourceFile.content_hash == content_hash,
+            )
+            .order_by(SourceFile.version_ref)
+            .limit(1)
+        )
+        if source_file is None:
+            return None
+        chunks_result = await db.execute(
+            select(CodeChunk)
+            .where(CodeChunk.file_id == source_file.id)
+            .order_by(CodeChunk.start_line, CodeChunk.end_line, CodeChunk.symbol_name)
+        )
+        embeddings_by_chunk: Dict[tuple, list] = {}
+        for existing_chunk in chunks_result.scalars().all():
+            embeddings_by_chunk.setdefault(_chunk_identity(existing_chunk), []).append(existing_chunk.embedding)
+
+        reused: List[List[float]] = []
+        for chunk in parsed_chunks:
+            candidates = embeddings_by_chunk.get(_chunk_identity(chunk))
+            if not candidates:
+                return None
+            embedding = candidates.pop(0)
+            if embedding is None:
+                return None
+            reused.append(embedding)
+        if any(candidates for candidates in embeddings_by_chunk.values()):
+            return None
+        return reused
+
+    async def index_repository(
+        self, repo_id: uuid.UUID, db: AsyncSession, version_ref: str = "default"
+    ) -> None:
+        """Index the default branch or an explicitly selected branch/tag."""
         stmt = select(Repository).where(Repository.id == repo_id)
         result = await db.execute(stmt)
         repo = result.scalar_one_or_none()
@@ -48,9 +109,35 @@ class IndexingService:
             logger.error("Repository %s not found for indexing", repo_id)
             return
 
+        is_default = version_ref == "default"
+        if not is_default and not version_ref.startswith(("branch:", "tag:")):
+            raise ValueError("Version must be 'default', 'branch:<name>', or 'tag:<name>'.")
+        ref_type = "branch" if is_default else version_ref.split(":", 1)[0]
+        ref_name = repo.default_branch if is_default else version_ref.split(":", 1)[1]
+        version_result = await db.execute(
+            select(RepositoryVersion).where(
+                RepositoryVersion.repository_id == repo.id,
+                RepositoryVersion.version_ref == version_ref,
+            )
+        )
+        version = version_result.scalar_one_or_none()
+        if version is None:
+            version = RepositoryVersion(
+                repository_id=repo.id,
+                version_ref=version_ref,
+                ref_type=ref_type,
+                ref_name=ref_name,
+                status="pending",
+            )
+            db.add(version)
+            await db.flush()
+
         try:
-            repo.status = "indexing"
-            repo.error_message = None
+            version.status = "indexing"
+            version.error_message = None
+            if is_default:
+                repo.status = "indexing"
+                repo.error_message = None
             await db.commit()
 
             # 1. Clone or pull repo
@@ -69,12 +156,17 @@ class IndexingService:
                 github_url=repo.github_url,
                 pat=github_token,
                 dest_dir=settings.REPOS_CLONE_DIR,
+                version_ref=version_ref,
             )
-            repo.clone_path = clone_path
 
-            # 2. Detect languages and frameworks
-            repo.languages = self.github_service.detect_languages(clone_path)
-            repo.frameworks = self.github_service.detect_frameworks(clone_path)
+            version.clone_path = clone_path
+            version.commit_sha = self.github_service.current_commit(clone_path)
+            if is_default:
+                repo.default_branch = self.github_service.current_branch(clone_path)
+                version.ref_name = repo.default_branch
+                repo.clone_path = clone_path
+                repo.languages = self.github_service.detect_languages(clone_path)
+                repo.frameworks = self.github_service.detect_frameworks(clone_path)
             await db.commit()
 
             # 3. Discover source files
@@ -85,7 +177,8 @@ class IndexingService:
 
             # Query existing files in DB
             existing_files_stmt = select(SourceFile).where(
-                SourceFile.repository_id == repo.id
+                SourceFile.repository_id == repo.id,
+                SourceFile.version_ref == version_ref,
             )
             existing_res = await db.execute(existing_files_stmt)
             existing_files: Dict[str, SourceFile] = {
@@ -115,7 +208,18 @@ class IndexingService:
                     continue
 
                 # Embed chunks
-                embeddings = await self.embedding_service.embed_chunks(parsed_chunks)
+                embeddings = await self._reuse_cross_version_embeddings(
+                    repo.id,
+                    version_ref,
+                    rel_path,
+                    content_hash,
+                    parsed_chunks,
+                    db,
+                )
+                if embeddings is None:
+                    embeddings = await self.embedding_service.embed_chunks(parsed_chunks)
+                else:
+                    logger.info("Reusing %d embeddings for unchanged file %s", len(embeddings), rel_path)
 
                 # Count lines
                 try:
@@ -137,6 +241,7 @@ class IndexingService:
                 else:
                     new_file = SourceFile(
                         repository_id=repo.id,
+                        version_ref=version_ref,
                         file_path=rel_path,
                         language=lang,
                         size_bytes=size,
@@ -151,6 +256,7 @@ class IndexingService:
                 for chunk, embedding in zip(parsed_chunks, embeddings):
                     db_chunk = CodeChunk(
                         repository_id=repo.id,
+                        version_ref=version_ref,
                         file_id=source_file_id,
                         file_path=rel_path,
                         language=chunk.language,
@@ -178,21 +284,27 @@ class IndexingService:
             count_files_stmt = (
                 select(func.count())
                 .select_from(SourceFile)
-                .where(SourceFile.repository_id == repo.id)
+                .where(SourceFile.repository_id == repo.id, SourceFile.version_ref == version_ref)
             )
             count_chunks_stmt = (
                 select(func.count())
                 .select_from(CodeChunk)
-                .where(CodeChunk.repository_id == repo.id)
+                .where(CodeChunk.repository_id == repo.id, CodeChunk.version_ref == version_ref)
             )
 
             file_count = (await db.execute(count_files_stmt)).scalar() or 0
             chunk_count = (await db.execute(count_chunks_stmt)).scalar() or 0
 
-            repo.file_count = file_count
-            repo.chunk_count = chunk_count
-            repo.status = "ready"
-            repo.last_indexed_at = datetime.now(timezone.utc)
+            version.file_count = file_count
+            version.chunk_count = chunk_count
+            version.status = "ready"
+            version.error_message = None
+            version.last_indexed_at = datetime.now(timezone.utc)
+            if is_default:
+                repo.file_count = file_count
+                repo.chunk_count = chunk_count
+                repo.status = "ready"
+                repo.last_indexed_at = version.last_indexed_at
             await db.commit()
 
             logger.info(
@@ -203,26 +315,50 @@ class IndexingService:
             )
 
         except Exception as e:
-            logger.exception("Error during indexing of repository %s: %s", repo_id, e)
+            logger.exception("Error during indexing of repository %s ref %s: %s", repo_id, version_ref, e)
             await db.rollback()
             # Fetch fresh instance to update error status
             repo_res = await db.execute(select(Repository).where(Repository.id == repo_id))
             r = repo_res.scalar_one_or_none()
             if r:
+                version_result = await db.execute(
+                    select(RepositoryVersion).where(
+                        RepositoryVersion.repository_id == repo_id,
+                        RepositoryVersion.version_ref == version_ref,
+                    )
+                )
+                failed_version = version_result.scalar_one_or_none()
                 chunk_count_result = await db.execute(
-                    select(func.count()).select_from(CodeChunk).where(CodeChunk.repository_id == repo_id)
+                    select(func.count()).select_from(CodeChunk).where(
+                        CodeChunk.repository_id == repo_id,
+                        CodeChunk.version_ref == version_ref,
+                    )
                 )
                 existing_chunk_count = chunk_count_result.scalar() or 0
                 if _is_embedding_quota_error(e) and existing_chunk_count > 0:
                     # Keep the last complete index usable. New code will be
                     # picked up on a later retry after the provider window
                     # resets, rather than taking repository Q&A offline.
-                    r.status = "ready"
-                    r.error_message = "Re-index paused because the embedding provider quota was exceeded. The previous index remains available; retry after the provider quota resets."
+                    message = "Re-index paused because the embedding provider quota was exceeded. The previous index remains available; retry after the provider quota resets."
+                    if is_default:
+                        r.status = "ready"
+                        r.error_message = message
+                    elif failed_version:
+                        # Version rows are refreshed in place, so a quota error
+                        # can leave a partially updated set. Keep it unqueryable
+                        # until a successful re-index completes.
+                        failed_version.status = "error"
+                        failed_version.error_message = "Indexing stopped because the embedding quota was reached. Retry indexing before querying this version."
                     logger.warning("Preserving previous index for %s after embedding quota exhaustion", repo_id)
                 else:
-                    r.status = "error"
-                    r.error_message = str(e)
+                    if is_default:
+                        r.status = "error"
+                        r.error_message = str(e)
+                    if failed_version:
+                        failed_version.status = "error"
+                        failed_version.error_message = (
+                            "This version could not be indexed. Check that the branch or tag exists and is accessible, then retry."
+                        )
                 await db.commit()
 
     async def reindex_files(
@@ -249,26 +385,46 @@ class IndexingService:
             file_stmt = select(SourceFile).where(
                 SourceFile.repository_id == repo_id,
                 SourceFile.file_path == rel_path,
+                SourceFile.version_ref == "default",
             )
             file_res = await db.execute(file_stmt)
             existing_file = file_res.scalar_one_or_none()
+
+            if not os.path.isfile(full_path):
+                if existing_file:
+                    await db.delete(existing_file)
+                continue
 
             parsed_chunks = self.parser_service.parse_file(full_path, lang)
             if not parsed_chunks:
                 continue
 
             embeddings = await self.embedding_service.embed_chunks(parsed_chunks)
+            content_hash = self.github_service.get_file_hash(full_path)
+            try:
+                with open(full_path, "r", encoding="utf-8", errors="replace") as source:
+                    line_count = sum(1 for _ in source)
+            except OSError:
+                line_count = 0
+            size_bytes = os.path.getsize(full_path)
 
             if existing_file:
                 del_stmt = delete(CodeChunk).where(CodeChunk.file_id == existing_file.id)
                 await db.execute(del_stmt)
                 file_id = existing_file.id
+                existing_file.content_hash = content_hash
+                existing_file.size_bytes = size_bytes
+                existing_file.line_count = line_count
+                existing_file.language = lang
             else:
                 new_file = SourceFile(
                     repository_id=repo_id,
+                    version_ref="default",
                     file_path=rel_path,
                     language=lang,
-                    content_hash=self.github_service.get_file_hash(full_path),
+                    size_bytes=size_bytes,
+                    line_count=line_count,
+                    content_hash=content_hash,
                 )
                 db.add(new_file)
                 await db.flush()
@@ -278,6 +434,7 @@ class IndexingService:
                 db.add(
                     CodeChunk(
                         repository_id=repo_id,
+                        version_ref="default",
                         file_id=file_id,
                         file_path=rel_path,
                         language=chunk.language,
@@ -293,4 +450,33 @@ class IndexingService:
                     )
                 )
 
+        count_files = await db.scalar(
+            select(func.count()).select_from(SourceFile).where(
+                SourceFile.repository_id == repo_id,
+                SourceFile.version_ref == "default",
+            )
+        ) or 0
+        count_chunks = await db.scalar(
+            select(func.count()).select_from(CodeChunk).where(
+                CodeChunk.repository_id == repo_id,
+                CodeChunk.version_ref == "default",
+            )
+        ) or 0
+        now = datetime.now(timezone.utc)
+        repo.file_count = count_files
+        repo.chunk_count = count_chunks
+        repo.last_indexed_at = now
+        version = await db.scalar(
+            select(RepositoryVersion).where(
+                RepositoryVersion.repository_id == repo_id,
+                RepositoryVersion.version_ref == "default",
+            )
+        )
+        if version:
+            version.file_count = count_files
+            version.chunk_count = count_chunks
+            version.commit_sha = self.github_service.current_commit(repo.clone_path)
+            version.last_indexed_at = now
+            version.status = "ready"
+            version.error_message = None
         await db.commit()

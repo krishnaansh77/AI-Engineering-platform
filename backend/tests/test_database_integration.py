@@ -13,11 +13,13 @@ from pathlib import Path
 
 DB_INTEGRATION_ENABLED = os.getenv("RUN_DB_INTEGRATION") == "1" and find_spec("fastapi") is not None
 if DB_INTEGRATION_ENABLED:
+    from sqlalchemy import select
     from app.api.query import evaluate_repository_retrieval, get_feedback_summary
     from app.api.schemas import EvaluationCase, EvaluationRequest
     from app.database import AsyncSessionLocal, create_all_tables, engine
     from app.models.code_chunk import CodeChunk
     from app.models.repository import Repository
+    from app.models.repository_version import RepositoryVersion
     from app.models.source_file import SourceFile
     from app.models.query_feedback import QueryFeedback
     from app.providers.embedding.mock_embedding import MockEmbeddingProvider
@@ -41,6 +43,16 @@ class TestDatabaseIntegration(unittest.IsolatedAsyncioTestCase):
                 status="ready",
                 languages=["python"],
                 frameworks=[],
+                file_count=1,
+                chunk_count=1,
+                last_indexed_at=datetime.now(timezone.utc),
+            ))
+            session.add(RepositoryVersion(
+                repository_id=self.repo_id,
+                version_ref="default",
+                ref_type="branch",
+                ref_name="main",
+                status="ready",
                 file_count=1,
                 chunk_count=1,
                 last_indexed_at=datetime.now(timezone.utc),
@@ -127,7 +139,14 @@ class TestDatabaseIntegration(unittest.IsolatedAsyncioTestCase):
                 self.clone_path = clone_path
 
             def clone_repository(self, **_kwargs):
+                self.version_ref = _kwargs.get("version_ref", "default")
                 return self.clone_path
+
+            def current_commit(self, _clone_path):
+                return "a" * 40
+
+            def current_branch(self, _clone_path):
+                return "main"
 
             def detect_languages(self, _clone_path):
                 return ["python"]
@@ -136,8 +155,11 @@ class TestDatabaseIntegration(unittest.IsolatedAsyncioTestCase):
                 return []
 
             def list_source_files(self, _clone_path):
-                path = Path(self.clone_path) / "src" / "sample.py"
-                return [{"relative_path": "src/sample.py", "path": str(path), "language": "python", "size": path.stat().st_size}]
+                file_name = "feature.py" if self.version_ref == "branch:feature/test" else "sample.py"
+                path = Path(self.clone_path) / "src" / file_name
+                if not path.exists():
+                    path.write_text("def feature(): return 2\n")
+                return [{"relative_path": f"src/{file_name}", "path": str(path), "language": "python", "size": path.stat().st_size}]
 
             def get_file_hash(self, path):
                 return uuid.uuid5(uuid.NAMESPACE_URL, Path(path).read_text()).hex
@@ -166,15 +188,27 @@ class TestDatabaseIntegration(unittest.IsolatedAsyncioTestCase):
                     frameworks=[],
                 ))
                 await session.commit()
-                await IndexingService(
+                indexing_service = IndexingService(
                     github_service=FakeGitHub(clone_path),
                     parser_service=FakeParser(),
                     embedding_service=FakeEmbedding(),
-                ).index_repository(repo_id, session)
+                )
+                await indexing_service.index_repository(repo_id, session)
                 refreshed = await session.get(Repository, repo_id)
                 self.assertEqual(refreshed.status, "ready")
                 self.assertEqual(refreshed.file_count, 1)
                 self.assertEqual(refreshed.chunk_count, 1)
+                await indexing_service.index_repository(repo_id, session, version_ref="branch:feature/test")
+                default_files = await session.execute(select(SourceFile).where(
+                    SourceFile.repository_id == repo_id,
+                    SourceFile.version_ref == "default",
+                ))
+                feature_files = await session.execute(select(SourceFile).where(
+                    SourceFile.repository_id == repo_id,
+                    SourceFile.version_ref == "branch:feature/test",
+                ))
+                self.assertEqual([item.file_path for item in default_files.scalars().all()], ["src/sample.py"])
+                self.assertEqual([item.file_path for item in feature_files.scalars().all()], ["src/feature.py"])
                 await session.delete(refreshed)
                 await session.commit()
 

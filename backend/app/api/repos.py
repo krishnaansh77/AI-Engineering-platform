@@ -23,6 +23,8 @@ from app.api.schemas import (
     PRComparisonRequest,
     RepoStatsResponse,
     RepositoryResponse,
+    RepositoryVersionIndexRequest,
+    RepositoryVersionResponse,
     SourceFileResponse,
     SearchResultSchema,
 )
@@ -30,6 +32,7 @@ from app.api.errors import error_detail
 from app.database import AsyncSessionLocal, get_db
 from app.config import settings
 from app.models.repository import Repository
+from app.models.repository_version import RepositoryVersion
 from app.models.source_file import SourceFile
 from app.models.query_feedback import QueryFeedback
 from app.models.query_event import QueryEvent
@@ -74,6 +77,11 @@ async def _write_issue_cache(key: str, issues: list) -> None:
         await client.aclose()
 
 
+def _dispatch_version_indexing_task(repo_id: uuid.UUID, version_ref: str) -> None:
+    """Queue an isolated branch/tag index without changing repository status."""
+    _dispatch_indexing_task(repo_id, version_ref)
+
+
 def _extract_full_name(github_url: str) -> str:
     """Parse 'owner/repo' slug from a github.com URL."""
     parsed = urlparse(github_url.rstrip("/"))
@@ -83,14 +91,14 @@ def _extract_full_name(github_url: str) -> str:
     return f"{path_parts[0]}/{path_parts[1]}"
 
 
-def _dispatch_indexing_task(repo_id: uuid.UUID) -> None:
+def _dispatch_indexing_task(repo_id: uuid.UUID, version_ref: str = "default") -> None:
     """Dispatch indexing job via Celery worker if available, with in-process fallback."""
     repo_id_str = str(repo_id)
     dispatched_celery = False
 
     try:
         from app.workers.tasks import index_repository_task
-        index_repository_task.delay(repo_id_str)
+        index_repository_task.delay(repo_id_str, version_ref)
         dispatched_celery = True
         logger.info("Enqueued Celery indexing task for repo %s", repo_id_str)
     except Exception as e:
@@ -103,7 +111,7 @@ def _dispatch_indexing_task(repo_id: uuid.UUID) -> None:
         async def _run_in_process():
             async with AsyncSessionLocal() as session:
                 service = IndexingService()
-                await service.index_repository(repo_id, session)
+                await service.index_repository(repo_id, session, version_ref=version_ref)
 
         asyncio.create_task(_run_in_process())
 
@@ -170,6 +178,81 @@ async def list_repositories(
     stmt = select(Repository).where(or_(Repository.owner_id == user.id, Repository.workspace_id.in_(visible_workspaces))).order_by(desc(Repository.created_at)) if visible_workspaces else select(Repository).where(Repository.owner_id == user.id).order_by(desc(Repository.created_at))
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.get("/{repo_id}/versions", response_model=List[RepositoryVersionResponse], dependencies=[Depends(require_repository_access)])
+async def list_repository_versions(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+) -> List[RepositoryVersionResponse]:
+    """List the default branch and all indexed branch/tag versions."""
+    repo = await db.scalar(select(Repository).where(Repository.id == repo_id))
+    if not repo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    versions_result = await db.execute(
+        select(RepositoryVersion)
+        .where(RepositoryVersion.repository_id == repo_id)
+        .order_by(RepositoryVersion.version_ref)
+    )
+    versions = list(versions_result.scalars().all())
+    if not any(version.version_ref == "default" for version in versions):
+        versions.insert(0, RepositoryVersionResponse(
+            version_ref="default",
+            ref_type="branch",
+            ref_name=repo.default_branch or "main",
+            status=repo.status,
+            commit_sha=None,
+            file_count=repo.file_count or 0,
+            chunk_count=repo.chunk_count or 0,
+            error_message=repo.error_message,
+            last_indexed_at=repo.last_indexed_at,
+        ))
+    return [RepositoryVersionResponse.model_validate(version, from_attributes=True) for version in versions]
+
+
+@router.post("/{repo_id}/versions/index", status_code=status.HTTP_202_ACCEPTED, dependencies=[Depends(require_repository_access)])
+async def index_repository_version(
+    repo_id: uuid.UUID,
+    payload: RepositoryVersionIndexRequest,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(require_roles("owner", "admin", "member")),
+) -> dict:
+    """Index one branch or tag into its own version-scoped chunk set."""
+    repo = await db.scalar(select(Repository).where(Repository.id == repo_id))
+    if not repo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    assert_repository_owner(user, repo.owner_id)
+    if repo.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Index the default branch before adding another version.")
+
+    version_ref = (
+        "default"
+        if payload.ref_type == "branch" and payload.ref_name == repo.default_branch
+        else f"{payload.ref_type}:{payload.ref_name}"
+    )
+    version = await db.scalar(select(RepositoryVersion).where(
+        RepositoryVersion.repository_id == repo_id,
+        RepositoryVersion.version_ref == version_ref,
+    ))
+    if version and version.status in {"pending", "indexing"}:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="This version is already queued or indexing.")
+    if version is None:
+        version = RepositoryVersion(
+            repository_id=repo_id,
+            version_ref=version_ref,
+            ref_type=payload.ref_type,
+            ref_name=payload.ref_name,
+            status="pending",
+        )
+        db.add(version)
+    else:
+        version.ref_type = payload.ref_type
+        version.ref_name = payload.ref_name
+        version.status = "pending"
+        version.error_message = None
+    await db.commit()
+    _dispatch_version_indexing_task(repo_id, version_ref)
+    return {"repository_id": str(repo_id), "version_ref": version_ref, "status": "pending"}
 
 
 @router.get("/search/all")
@@ -378,10 +461,14 @@ async def get_repository_stats(
 @router.get("/{repo_id}/files", response_model=List[SourceFileResponse], dependencies=[Depends(require_repository_access)])
 async def list_repository_files(
     repo_id: uuid.UUID,
+    version_ref: str = Query("default", min_length=1, max_length=255),
     db: AsyncSession = Depends(get_db),
 ) -> List[SourceFile]:
-    """List all indexed source files for a given repository."""
-    stmt = select(SourceFile).where(SourceFile.repository_id == repo_id).order_by(SourceFile.file_path)
+    """List indexed source files for one repository version."""
+    stmt = select(SourceFile).where(
+        SourceFile.repository_id == repo_id,
+        SourceFile.version_ref == version_ref,
+    ).order_by(SourceFile.file_path)
     result = await db.execute(stmt)
     return list(result.scalars().all())
 
@@ -389,6 +476,7 @@ async def list_repository_files(
 @router.get("/{repo_id}/graph/files", dependencies=[Depends(require_repository_access)])
 async def get_file_dependency_graph(
     repo_id: uuid.UUID,
+    version_ref: str = Query("default", min_length=1, max_length=255),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Return the repository's resolved file-level import dependency graph."""
@@ -404,7 +492,7 @@ async def get_file_dependency_graph(
             status_code=status.HTTP_409_CONFLICT,
             detail="Repository must finish indexing before its dependency graph is available.",
         )
-    return await DependencyGraphService().build_file_graph(repo_id, db)
+    return await DependencyGraphService().build_file_graph(repo_id, db, version_ref=version_ref)
 
 
 @router.get("/{repo_id}/history", dependencies=[Depends(require_repository_access)])

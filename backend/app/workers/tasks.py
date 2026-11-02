@@ -12,15 +12,15 @@ logger = logging.getLogger(__name__)
 
 
 @celery_app.task(name="tasks.index_repository")
-def index_repository_task(repo_id_str: str) -> None:
+def index_repository_task(repo_id_str: str, version_ref: str = "default") -> None:
     """Run full indexing pipeline in a background Celery worker."""
-    logger.info("Starting background indexing task for repository %s", repo_id_str)
+    logger.info("Starting background indexing task for repository %s ref %s", repo_id_str, version_ref)
 
     async def _run() -> None:
         try:
             async with AsyncSessionLocal() as session:
                 service = IndexingService()
-                await service.index_repository(uuid.UUID(repo_id_str), session)
+                await service.index_repository(uuid.UUID(repo_id_str), session, version_ref=version_ref)
         finally:
             # Celery prefork workers execute each task with asyncio.run(),
             # creating a fresh event loop. Dispose the asyncpg pool before

@@ -25,3 +25,10 @@ class TestQueryCache(unittest.TestCase):
         first = build_query_cache_key(repo.id, repo.last_indexed_at.isoformat(), "Where is auth?", 5)
         repo.last_indexed_at = datetime(2026, 1, 2, tzinfo=timezone.utc)
         self.assertNotEqual(first, build_query_cache_key(repo.id, repo.last_indexed_at.isoformat(), "Where is auth?", 5))
+
+    def test_repository_ref_is_part_of_cache_key(self):
+        repository_id = uuid.UUID("00000000-0000-0000-0000-000000000001")
+        default = build_query_cache_key(repository_id, "2026-01-01", "Where is auth?", 5)
+        feature = build_query_cache_key(repository_id, "2026-01-01", "Where is auth?", 5, "branch:feature/login")
+        tag = build_query_cache_key(repository_id, "2026-01-01", "Where is auth?", 5, "tag:v1.0")
+        self.assertEqual(len({default, feature, tag}), 3)

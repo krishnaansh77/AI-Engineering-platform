@@ -1,6 +1,7 @@
 """Pydantic schemas for API requests and responses."""
 from datetime import datetime
 from typing import List, Optional, Literal
+import re
 import uuid
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
@@ -76,6 +77,54 @@ class WorkspaceMemberUpdate(BaseModel):
     role: Literal["member", "admin"]
 
 
+def _validate_version_ref(value: str) -> str:
+    if value == "default":
+        return value
+    match = re.fullmatch(r"(branch|tag):([A-Za-z0-9][A-Za-z0-9._/-]{0,199})", value)
+    if not match:
+        raise ValueError("Version must be 'default', 'branch:<name>', or 'tag:<name>'.")
+    ref_name = match.group(2)
+    if (
+        any(
+            not part
+            or part.startswith(".")
+            or part.endswith(".")
+            or ".." in part
+            or part.lower().endswith(".lock")
+            for part in ref_name.split("/")
+        )
+        or "@{" in ref_name
+    ):
+        raise ValueError("Version reference is not a valid Git ref name.")
+    return value
+
+
+class RepositoryVersionIndexRequest(BaseModel):
+    """Request indexing one branch or tag without replacing the default index."""
+    ref_type: Literal["branch", "tag"]
+    ref_name: str = Field(..., min_length=1, max_length=200)
+
+    @field_validator("ref_name")
+    @classmethod
+    def validate_ref_name(cls, value: str) -> str:
+        _validate_version_ref(f"branch:{value}")
+        return value
+
+
+class RepositoryVersionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    version_ref: str
+    ref_type: str
+    ref_name: str
+    status: str
+    commit_sha: Optional[str] = None
+    file_count: int = 0
+    chunk_count: int = 0
+    error_message: Optional[str] = None
+    last_indexed_at: Optional[datetime] = None
+
+
 class RepositoryResponse(BaseModel):
     """Public representation of a connected repository."""
     model_config = ConfigDict(from_attributes=True)
@@ -130,6 +179,7 @@ class SourceFileResponse(BaseModel):
 
     id: uuid.UUID
     repository_id: uuid.UUID
+    version_ref: str = "default"
     file_path: str
     language: str
     size_bytes: int
@@ -151,12 +201,24 @@ class QueryRequest(BaseModel):
     """Developer question payload."""
     question: str = Field(..., min_length=1, description="Question about the repository")
     top_k: int = Field(5, ge=1, le=20, description="Number of source chunks to retrieve")
+    version_ref: str = Field("default", min_length=1, max_length=255)
+
+    @field_validator("version_ref")
+    @classmethod
+    def validate_version(cls, value: str) -> str:
+        return _validate_version_ref(value)
 
 
 class AgentRequest(BaseModel):
     """Bounded repository-agent question payload."""
     question: str = Field(..., min_length=1, max_length=4000)
     top_k: int = Field(5, ge=1, le=10)
+    version_ref: str = Field("default", min_length=1, max_length=255)
+
+    @field_validator("version_ref")
+    @classmethod
+    def validate_version(cls, value: str) -> str:
+        return _validate_version_ref(value)
 
 
 class QueryResponse(BaseModel):
@@ -167,6 +229,7 @@ class QueryResponse(BaseModel):
     retrieval_count: int
     citation_coverage: float = Field(0.0, ge=0.0, le=1.0)
     cached: bool = False
+    version_ref: str = "default"
 
 
 class AgentResponse(QueryResponse):
@@ -196,6 +259,12 @@ class EvaluationCase(BaseModel):
 class EvaluationRequest(BaseModel):
     cases: List[EvaluationCase] = Field(..., min_length=1, max_length=50)
     top_k: int = Field(5, ge=1, le=20)
+    version_ref: str = Field("default", min_length=1, max_length=255)
+
+    @field_validator("version_ref")
+    @classmethod
+    def validate_version(cls, value: str) -> str:
+        return _validate_version_ref(value)
 
 
 class PRComparisonRequest(BaseModel):

@@ -7,5 +7,6 @@ from app.models.query_event import QueryEvent
 from app.models.user import User
 from app.models.workspace import Workspace, WorkspaceMember
 from app.models.workspace_invitation import WorkspaceInvitation
+from app.models.repository_version import RepositoryVersion
 
-__all__ = ["Repository", "SourceFile", "CodeChunk", "QueryFeedback", "QueryEvent", "User", "Workspace", "WorkspaceMember", "WorkspaceInvitation"]
+__all__ = ["Repository", "SourceFile", "CodeChunk", "QueryFeedback", "QueryEvent", "User", "Workspace", "WorkspaceMember", "WorkspaceInvitation", "RepositoryVersion"]

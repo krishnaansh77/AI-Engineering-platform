@@ -10,9 +10,10 @@ def build_query_cache_key(
     last_indexed_at: Optional[str],
     question: str,
     top_k: int,
+    version_ref: str = "default",
 ) -> str:
     """Build a stable key that changes whenever the indexed repository changes."""
     version = last_indexed_at or "unindexed"
     normalized_question = re.sub(r"\s+", " ", question).strip().lower()
     question_hash = hashlib.sha256(normalized_question.encode("utf-8")).hexdigest()
-    return f"aise:query:{repo_id}:{version}:{top_k}:{question_hash}"
+    return f"aise:query:{repo_id}:{version}:{version_ref}:{top_k}:{question_hash}"

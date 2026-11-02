@@ -62,11 +62,27 @@ class GitHubService:
 
     SUPPORTED_EXTENSIONS = SUPPORTED_EXTENSIONS
 
+    @staticmethod
+    def current_commit(clone_path: str) -> str:
+        """Return the exact commit checked out for a repository version."""
+        return git.Repo(clone_path).head.commit.hexsha
+
+    @staticmethod
+    def current_branch(clone_path: str) -> str:
+        """Return the checked-out branch name for a default-branch clone."""
+        repository = git.Repo(clone_path)
+        try:
+            return repository.active_branch.name
+        except TypeError:
+            remote_head = repository.git.symbolic_ref("refs/remotes/origin/HEAD")
+            return remote_head.rsplit("/", 1)[-1]
+
     def clone_repository(
         self,
         github_url: str,
         pat: str,
         dest_dir: str,
+        version_ref: str = "default",
     ) -> str:
         """Clone a GitHub repository using a Personal Access Token.
 
@@ -84,23 +100,61 @@ class GitHubService:
         else:
             auth_url = github_url
 
-        # Derive local directory name from the repo slug
+        # Refs are explicit and isolated on disk so concurrent branch indexing
+        # cannot change the default checkout or another version's files.
+        ref_type = "default"
+        ref_name = ""
+        if version_ref != "default":
+            match = re.fullmatch(r"(branch|tag):([A-Za-z0-9][A-Za-z0-9._/-]{0,199})", version_ref)
+            if not match:
+                raise ValueError("Version must be 'default', 'branch:<name>', or 'tag:<name>'.")
+            ref_type, ref_name = match.groups()
+            if (
+                any(
+                    not part
+                    or part.startswith(".")
+                    or part.endswith(".")
+                    or ".." in part
+                    or part.lower().endswith(".lock")
+                    for part in ref_name.split("/")
+                )
+                or "@{" in ref_name
+            ):
+                raise ValueError("Version reference is not a valid Git ref name.")
+
+        # Derive local directory name from the repo slug. Alternate refs use a
+        # stable digest suffix and remain siblings of the default clone.
         repo_slug = github_url.rstrip("/").split("/")[-1]
-        clone_path = os.path.join(dest_dir, repo_slug)
+        if ref_type == "default":
+            clone_path = os.path.join(dest_dir, repo_slug)
+        else:
+            clone_key = f"{github_url.rstrip('/').lower()}#{version_ref}"
+            version_key = hashlib.sha256(clone_key.encode("utf-8")).hexdigest()[:12]
+            clone_path = os.path.join(dest_dir, f"{repo_slug}-version-{version_key}")
 
         if os.path.exists(clone_path):
-            logger.info("Repository already cloned at %s — pulling latest", clone_path)
-            self.update_repository(clone_path)
+            logger.info("Version checkout already exists at %s", clone_path)
+            if ref_type not in {"tag", "default"} and not self.update_repository(clone_path):
+                raise RuntimeError("The requested branch could not be refreshed from its remote.")
+            if ref_type == "default":
+                self.update_repository(clone_path)
             return clone_path
 
         os.makedirs(dest_dir, exist_ok=True)
         logger.info("Cloning %s → %s", github_url, clone_path)
 
-        git.Repo.clone_from(
-            auth_url,
-            clone_path,
-            depth=50,  # Shallow clone for speed
-        )
+        clone_options = {"depth": 50}
+        if ref_type == "branch":
+            clone_options["branch"] = ref_name
+            clone_options["depth"] = 1
+        elif ref_type == "tag":
+            clone_options["depth"] = 1
+            clone_options["no_checkout"] = True
+        repository = git.Repo.clone_from(auth_url, clone_path, **clone_options)
+        if ref_type == "tag":
+            tag_ref = f"refs/tags/{ref_name}"
+            repository.git.fetch("--depth=1", "origin", f"{tag_ref}:{tag_ref}")
+            repository.git.checkout("--detach", tag_ref)
 
         logger.info("Clone complete: %s", clone_path)
         return clone_path

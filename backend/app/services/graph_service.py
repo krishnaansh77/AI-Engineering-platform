@@ -11,19 +11,25 @@ class DependencyGraphService:
     """Resolve indexed import statements into repository-local file edges."""
 
     async def build_file_graph(
-        self, repo_id: uuid.UUID, db: AsyncSession
+        self, repo_id: uuid.UUID, db: AsyncSession, version_ref: str = "default"
     ) -> dict:
         from app.models.code_chunk import CodeChunk
         from app.models.source_file import SourceFile
 
         files_result = await db.execute(
-            select(SourceFile).where(SourceFile.repository_id == repo_id)
+            select(SourceFile).where(
+                SourceFile.repository_id == repo_id,
+                SourceFile.version_ref == version_ref,
+            )
         )
         file_paths = sorted({f.file_path for f in files_result.scalars().all()})
         known_paths = set(file_paths)
 
         chunks_result = await db.execute(
-            select(CodeChunk).where(CodeChunk.repository_id == repo_id)
+            select(CodeChunk).where(
+                CodeChunk.repository_id == repo_id,
+                CodeChunk.version_ref == version_ref,
+            )
         )
 
         edges: Set[Tuple[str, str, str]] = set()
@@ -101,12 +107,14 @@ class DependencyGraphService:
         ]
         return {"layers": layers, "cross_layer_links": links}
 
-    async def build_test_summary(self, repo_id: uuid.UUID, db: AsyncSession) -> dict:
+    async def build_test_summary(
+        self, repo_id: uuid.UUID, db: AsyncSession, version_ref: str = "default"
+    ) -> dict:
         """Build a conservative test-to-source relationship summary.
 
         This is a relationship heuristic, not a replacement for runtime coverage.
         """
-        graph = await self.build_file_graph(repo_id, db)
+        graph = await self.build_file_graph(repo_id, db, version_ref=version_ref)
         paths = [node["file_path"] for node in graph["nodes"]]
         test_files = {path for path in paths if self.classify_layer(path) == "tests"}
         source_files = set(paths) - test_files
@@ -138,9 +146,11 @@ class DependencyGraphService:
             "untested_files": untested_files,
         }
 
-    async def build_repository_tour(self, repo_id: uuid.UUID, db: AsyncSession) -> dict:
+    async def build_repository_tour(
+        self, repo_id: uuid.UUID, db: AsyncSession, version_ref: str = "default"
+    ) -> dict:
         """Return a compact onboarding-oriented view of the repository structure."""
-        graph = await self.build_file_graph(repo_id, db)
+        graph = await self.build_file_graph(repo_id, db, version_ref=version_ref)
         connection_counts: Dict[str, int] = {node["id"]: 0 for node in graph["nodes"]}
         for edge in graph["edges"]:
             connection_counts[edge["source"]] += 1
@@ -165,12 +175,17 @@ class DependencyGraphService:
             "key_files": key_files,
         }
 
-    async def build_debt_summary(self, repo_id: uuid.UUID, db: AsyncSession) -> dict:
+    async def build_debt_summary(
+        self, repo_id: uuid.UUID, db: AsyncSession, version_ref: str = "default"
+    ) -> dict:
         """Return explainable structural debt signals, not a subjective quality score."""
         from app.models.code_chunk import CodeChunk
 
-        graph = await self.build_file_graph(repo_id, db)
-        chunk_result = await db.execute(select(CodeChunk).where(CodeChunk.repository_id == repo_id))
+        graph = await self.build_file_graph(repo_id, db, version_ref=version_ref)
+        chunk_result = await db.execute(select(CodeChunk).where(
+            CodeChunk.repository_id == repo_id,
+            CodeChunk.version_ref == version_ref,
+        ))
         chunks = list(chunk_result.scalars().all())
         connection_counts: Dict[str, int] = {node["id"]: 0 for node in graph["nodes"]}
         for edge in graph["edges"]:
@@ -203,7 +218,10 @@ class DependencyGraphService:
         """Measure symbol docstring coverage for documentation planning."""
         from app.models.code_chunk import CodeChunk
 
-        result = await db.execute(select(CodeChunk).where(CodeChunk.repository_id == repo_id))
+        result = await db.execute(select(CodeChunk).where(
+            CodeChunk.repository_id == repo_id,
+            CodeChunk.version_ref == "default",
+        ))
         symbols = [chunk for chunk in result.scalars().all() if chunk.symbol_name and chunk.symbol_name != "__imports__"]
         documented = [chunk for chunk in symbols if chunk.docstring and chunk.docstring.strip()]
         missing_by_file: Dict[str, int] = {}

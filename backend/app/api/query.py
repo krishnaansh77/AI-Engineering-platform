@@ -16,6 +16,7 @@ from app.api.auth import get_current_user, require_repository_access
 from app.config import settings
 from app.database import get_db
 from app.models.repository import Repository
+from app.models.repository_version import RepositoryVersion
 from app.models.query_feedback import QueryFeedback
 from app.models.query_event import QueryEvent
 from app.services.llm_service import LLMService
@@ -83,11 +84,22 @@ async def query_repository(
             detail=f"Repository indexing failed with error: {repo.error_message}",
         )
 
+    selected_version = await db.scalar(select(RepositoryVersion).where(
+        RepositoryVersion.repository_id == repo_id,
+        RepositoryVersion.version_ref == payload.version_ref,
+    ))
+    if not selected_version or selected_version.status != "ready":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Version '{payload.version_ref}' is not indexed yet. Index it from repository chat before asking about it.",
+        )
+
     cache_key = build_query_cache_key(
         repo.id,
-        repo.last_indexed_at.isoformat() if repo.last_indexed_at else None,
+        selected_version.last_indexed_at.isoformat() if selected_version.last_indexed_at else None,
         payload.question,
         payload.top_k,
+        payload.version_ref,
     )
     cached_response = await _read_cached_query(cache_key)
     if cached_response:
@@ -109,6 +121,7 @@ async def query_repository(
         db=db,
         top_k=settings.RETRIEVAL_TOP_K,
         final_k=payload.top_k,
+        version_ref=payload.version_ref,
     )
     retrieval_latency_ms = (time.perf_counter() - retrieval_started) * 1000
 
@@ -118,7 +131,7 @@ async def query_repository(
         query_answer = await llm_service.answer_query(
             query=payload.question,
             retrieved_chunks=retrieved_chunks,
-            repo_name=repo.full_name,
+            repo_name=f"{repo.full_name} [{payload.version_ref}]",
         )
     except Exception as exc:
         logger.exception("LLM provider failed for repository %s", repo_id)
@@ -137,7 +150,7 @@ async def query_repository(
             fallback_answer = await LLMService(provider=get_llm_provider(fallback_provider)).answer_query(
                 query=payload.question,
                 retrieved_chunks=retrieved_chunks,
-                repo_name=repo.full_name,
+                repo_name=f"{repo.full_name} [{payload.version_ref}]",
             )
         except Exception as fallback_exc:
             logger.exception("Configured fallback provider failed for repository %s", repo_id)
@@ -181,6 +194,7 @@ async def query_repository(
         model=query_answer.model,
         retrieval_count=len(retrieved_chunks),
         citation_coverage=query_answer.citation_coverage,
+        version_ref=payload.version_ref,
     )
     await _write_cached_query(cache_key, response.model_dump())
     return response
@@ -199,15 +213,23 @@ async def ask_repository_agent(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
     if repo.status != "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must be ready before the agent can run.")
+    selected_version = await db.scalar(select(RepositoryVersion).where(
+        RepositoryVersion.repository_id == repo_id,
+        RepositoryVersion.version_ref == payload.version_ref,
+    ))
+    if not selected_version or selected_version.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Version '{payload.version_ref}' is not indexed yet.")
     allowed, _remaining = await consume_llm_request(settings.REDIS_URL, user.id, settings.LLM_DAILY_REQUEST_LIMIT)
     if not allowed:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=error_detail("LLM_DAILY_LIMIT", "Your daily AI request budget is exhausted.", True))
-    chunks, evidence = await RepositoryAgent().run(repo, payload.question, db, payload.top_k)
+    chunks, evidence = await RepositoryAgent().run(
+        repo, payload.question, db, payload.top_k, version_ref=payload.version_ref
+    )
     try:
         answer = await LLMService().answer_query(
             query=RepositoryAgent.evidence_prompt(payload.question, evidence),
             retrieved_chunks=chunks,
-            repo_name=repo.full_name,
+            repo_name=f"{repo.full_name} [{payload.version_ref}]",
         )
     except Exception as exc:
         logger.exception("Repository agent synthesis failed for %s", repo_id)
@@ -217,6 +239,7 @@ async def ask_repository_agent(
         model=answer.model,
         retrieval_count=len(chunks),
         citation_coverage=answer.citation_coverage,
+        version_ref=payload.version_ref,
         citations=[CitationSchema(file_path=c.file_path, symbol_name=c.symbol_name, chunk_type=c.chunk_type, start_line=c.start_line, end_line=c.end_line) for c in answer.citations],
         tools_used=[item["tool"] for item in evidence],
     )
@@ -227,6 +250,7 @@ async def search_repository(
     repo_id: uuid.UUID,
     q: str = Query(..., min_length=1, max_length=500),
     top_k: int = Query(8, ge=1, le=20),
+    version_ref: str = Query("default", min_length=1, max_length=255),
     db: AsyncSession = Depends(get_db),
 ) -> SearchResponse:
     """Search repository code using hybrid retrieval without an LLM call."""
@@ -237,12 +261,20 @@ async def search_repository(
     if repo.status != "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before it can be searched.")
 
+    selected_version = await db.scalar(select(RepositoryVersion).where(
+        RepositoryVersion.repository_id == repo_id,
+        RepositoryVersion.version_ref == version_ref,
+    ))
+    if not selected_version or selected_version.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Version '{version_ref}' is not indexed yet.")
+
     chunks = await RetrievalService().retrieve(
         query=q,
         repo_id=repo_id,
         db=db,
         top_k=settings.RETRIEVAL_TOP_K,
         final_k=top_k,
+        version_ref=version_ref,
     )
     return SearchResponse(
         query=q,
@@ -275,6 +307,13 @@ async def evaluate_repository_retrieval(
     if repo.status != "ready":
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must finish indexing before evaluation is available.")
 
+    selected_version = await db.scalar(select(RepositoryVersion).where(
+        RepositoryVersion.repository_id == repo_id,
+        RepositoryVersion.version_ref == payload.version_ref,
+    ))
+    if not selected_version or selected_version.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=f"Version '{payload.version_ref}' is not indexed yet.")
+
     case_results = []
     for case in payload.cases:
         retrieval_started = time.perf_counter()
@@ -284,6 +323,7 @@ async def evaluate_repository_retrieval(
             db=db,
             top_k=settings.RETRIEVAL_TOP_K,
             final_k=payload.top_k,
+            version_ref=payload.version_ref,
         )
         retrieval_latency_ms = round((time.perf_counter() - retrieval_started) * 1000, 2)
         metrics = score_retrieval(case.expected_files, [chunk.file_path for chunk in chunks])

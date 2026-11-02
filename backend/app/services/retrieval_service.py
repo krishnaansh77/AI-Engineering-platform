@@ -70,6 +70,7 @@ class RetrievalService:
         db: AsyncSession,
         top_k: int = 20,
         final_k: int = 5,
+        version_ref: str = "default",
     ) -> List[RetrievedChunk]:
         """Perform hybrid retrieval over repository code chunks.
 
@@ -82,7 +83,10 @@ class RetrievalService:
             return []
 
         # 1. Fetch all chunks for BM25 and candidate selection
-        query_stmt = select(CodeChunk).where(CodeChunk.repository_id == repo_id)
+        query_stmt = select(CodeChunk).where(
+            CodeChunk.repository_id == repo_id,
+            CodeChunk.version_ref == version_ref,
+        )
         result = await db.execute(query_stmt)
         all_chunks = list(result.scalars().all())
 
@@ -100,6 +104,7 @@ class RetrievalService:
                 select(CodeChunk.id)
                 .where(
                     CodeChunk.repository_id == repo_id,
+                    CodeChunk.version_ref == version_ref,
                     CodeChunk.embedding.isnot(None),
                 )
                 .order_by(CodeChunk.embedding.cosine_distance(query_embedding))
