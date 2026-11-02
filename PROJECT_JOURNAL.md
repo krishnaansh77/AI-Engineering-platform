@@ -42,6 +42,9 @@
 - The no-cost observability view is now live on Account, aggregating health,
   query latency, token usage, estimated cost, and feedback across repositories.
   Repository detail also exposes the opt-in redacted heuristic secret scan.
+- Backend requests now emit structured JSON completion events with safe request
+  correlation IDs, HTTP status, client, and duration fields; the ID is also
+  returned as `X-Request-ID` for debugging a single request across logs.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---

@@ -343,7 +343,7 @@
 
 ### 4.2 — Observability (#27)
 
-- [ ] Structured logging (JSON logs → OpenTelemetry)
+- [x] Structured JSON request logs with safe correlation IDs; OpenTelemetry export remains open
 - [x] Metrics: query latency, retrieval latency, LLM latency, token usage
 - [ ] Tracing: end-to-end request traces
 - [x] Dashboard: no-cost account/workspace observability panel using live health, query, token, and feedback metrics

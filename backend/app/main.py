@@ -3,7 +3,10 @@ import logging
 import time
 import asyncio
 import re
+import json
+import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import AsyncGenerator
 
@@ -23,11 +26,36 @@ from app.config import settings
 from app.database import create_all_tables, engine
 from app.services.rate_limit_service import rate_limit_for_path
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-)
+class JsonLogFormatter(logging.Formatter):
+    """Emit compact, machine-readable logs without leaking request contents."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+        for field in ("request_id", "method", "path", "status_code", "duration_ms", "client"):
+            value = getattr(record, field, None)
+            if value is not None:
+                payload[field] = value
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, separators=(",", ":"), default=str)
+
+
+_root_logger = logging.getLogger()
+_root_logger.setLevel(logging.INFO)
+if not _root_logger.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(JsonLogFormatter())
+    _root_logger.addHandler(_handler)
+else:
+    for _handler in _root_logger.handlers:
+        _handler.setFormatter(JsonLogFormatter())
 logger = logging.getLogger("aise")
+request_logger = logging.getLogger("aise.request")
 EXPECTED_MIGRATION_REVISION = "008_backfill_repository_stats"
 _migration_startup_error: str | None = None
 
@@ -97,6 +125,62 @@ class SafetyMiddleware:
         await self.app(scope, receive, send)
 
 
+class RequestLoggingMiddleware:
+    """Attach a safe correlation ID and emit one structured event per request."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        headers = dict(scope.get("headers") or [])
+        supplied_id = headers.get(b"x-request-id", b"").decode("latin-1").strip()
+        request_id = supplied_id if re.fullmatch(r"[A-Za-z0-9._:-]{1,128}", supplied_id) else uuid.uuid4().hex
+        started = time.perf_counter()
+        status_code = 500
+
+        async def send_with_request_id(message):
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message["status"]
+                response_headers = [
+                    (key, value) for key, value in message.get("headers", []) if key.lower() != b"x-request-id"
+                ]
+                response_headers.append((b"x-request-id", request_id.encode("latin-1")))
+                message = {**message, "headers": response_headers}
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_with_request_id)
+        except Exception:
+            request_logger.exception(
+                "request.failed",
+                extra={
+                    "request_id": request_id,
+                    "method": scope.get("method", ""),
+                    "path": scope.get("path", ""),
+                    "status_code": 500,
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                    "client": (scope.get("client") or ("unknown", 0))[0],
+                },
+            )
+            raise
+        finally:
+            request_logger.info(
+                "request.completed",
+                extra={
+                    "request_id": request_id,
+                    "method": scope.get("method", ""),
+                    "path": scope.get("path", ""),
+                    "status_code": status_code,
+                    "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+                    "client": (scope.get("client") or ("unknown", 0))[0],
+                },
+            )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan event handler for startup and shutdown routines."""
@@ -128,6 +212,7 @@ app = FastAPI(
 )
 
 app.add_middleware(SafetyMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 
 # CORS configuration
 app.add_middleware(
@@ -136,6 +221,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["X-Request-ID"],
 )
 
 # Mount API routers
