@@ -2,6 +2,7 @@
 import asyncio
 import uuid
 import unittest
+from unittest.mock import patch
 
 from app.providers.llm.base import LLMMessage, LLMProvider, LLMResponse
 from app.services.llm_service import LLMService
@@ -12,12 +13,14 @@ class FixedProvider(LLMProvider):
     def __init__(self, answer: str):
         self.answer = answer
         self.messages = []
+        self.complete_kwargs = {}
 
     def get_provider_name(self) -> str:
         return "fixed-test-provider"
 
     async def complete(self, messages: list[LLMMessage], **kwargs) -> LLMResponse:
         self.messages = messages
+        self.complete_kwargs = kwargs
         return LLMResponse(self.answer, "fixed", 1, 1)
 
 
@@ -61,6 +64,24 @@ class TestCitationCoverage(unittest.TestCase):
         self.assertLess(len(result.citations), len(chunks))
         included_paths = [citation.file_path for citation in result.citations]
         self.assertEqual(included_paths, [f"src/file_{index}.py" for index in range(4)])
+
+    def test_simple_query_uses_configured_model_only_when_enabled(self):
+        provider = FixedProvider("The login handler is in src/auth.py")
+        with (
+            patch("app.services.llm_service.get_llm_provider", return_value=provider) as factory,
+            patch("app.services.llm_service.settings.LLM_PROVIDER", "openai"),
+            patch("app.services.llm_service.settings.LLM_SIMPLE_MODEL", "gpt-4o-mini"),
+        ):
+            service = LLMService()
+            asyncio.run(service.answer_query("Where is login?", [chunk("src/auth.py", "login")], "acme/demo"))
+
+        factory.assert_any_call(model_name="gpt-4o-mini")
+        self.assertEqual(provider.complete_kwargs["max_tokens"], 512)
+
+    def test_synthesis_questions_are_not_classified_as_simple(self):
+        self.assertFalse(LLMService._is_simple_query("Why does login fail across services?"))
+        self.assertFalse(LLMService._is_simple_query("Compare the authentication architectures"))
+        self.assertTrue(LLMService._is_simple_query("Where is login handled?"))
 
 
 if __name__ == "__main__":

@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 class GeminiProvider(LLMProvider):
     """LLM provider backed by Google's Gemini API."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_name: str | None = None) -> None:
         self._client = genai.Client(api_key=settings.GOOGLE_API_KEY)
         # The new SDK expects the bare model ID, while older deployments may
         # still have a ``models/`` prefix in their environment variable.
-        self._model_name = settings.GEMINI_LLM_MODEL.removeprefix("models/")
+        self._model_name = (model_name or settings.GEMINI_LLM_MODEL).removeprefix("models/")
         self._temperature = settings.OPENAI_LLM_TEMPERATURE  # Reuse temperature setting
         self._max_tokens = settings.OPENAI_LLM_MAX_TOKENS
 

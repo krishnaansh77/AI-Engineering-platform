@@ -29,6 +29,9 @@ class Settings(BaseSettings):
 
     # ── LLM Provider ─────────────────────────────────────────────────────────
     LLM_PROVIDER: str = "openai"
+    # Optional provider-specific model override for short, low-complexity code questions.
+    # Empty keeps every request on the configured main model and avoids changing costs.
+    LLM_SIMPLE_MODEL: str = ""
     OPENAI_API_KEY: str = ""
     OPENAI_LLM_MODEL: str = "gpt-4o"
     OPENAI_LLM_TEMPERATURE: float = 0.0

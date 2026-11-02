@@ -14,9 +14,9 @@ logger = logging.getLogger(__name__)
 class OpenAIProvider(LLMProvider):
     """LLM provider backed by OpenAI's chat completions API."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_name: str | None = None) -> None:
         self._client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-        self._model = settings.OPENAI_LLM_MODEL
+        self._model = model_name or settings.OPENAI_LLM_MODEL
         self._temperature = settings.OPENAI_LLM_TEMPERATURE
         self._max_tokens = settings.OPENAI_LLM_MAX_TOKENS
 

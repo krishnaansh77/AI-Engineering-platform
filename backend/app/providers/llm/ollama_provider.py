@@ -10,9 +10,9 @@ from app.providers.llm.base import LLMMessage, LLMProvider, LLMResponse
 class OllamaProvider(LLMProvider):
     """Call a local Ollama server without sending code to a hosted provider."""
 
-    def __init__(self) -> None:
+    def __init__(self, model_name: str | None = None) -> None:
         self._base_url = settings.OLLAMA_BASE_URL.rstrip("/")
-        self._model = settings.OLLAMA_LLM_MODEL
+        self._model = model_name or settings.OLLAMA_LLM_MODEL
 
     def get_provider_name(self) -> str:
         return f"ollama/{self._model}"

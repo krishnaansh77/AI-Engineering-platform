@@ -1,8 +1,10 @@
 """LLM service for answering codebase questions with verified source code citations."""
 import logging
+import re
 from dataclasses import dataclass
 from typing import List, Optional
 
+from app.config import settings
 from app.providers.llm.base import LLMMessage, LLMProvider
 from app.providers.llm.factory import get_llm_provider
 from app.services.retrieval_service import RetrievedChunk
@@ -48,13 +50,33 @@ Instructions:
 # file/symbol/line provenance for citations.
 _MAX_CONTEXT_CHARS_PER_CHUNK = 4500
 _MAX_CONTEXT_CHARS_TOTAL = 18000
+_SIMPLE_QUERY_MAX_WORDS = 12
+_SIMPLE_QUERY_MAX_CHARS = 100
+_SYNTHESIS_TERMS = {
+    "across", "all", "architecture", "change", "compare", "dependency",
+    "difference", "explain", "impact", "overview", "relationship", "refactor",
+    "security", "summarize", "trace", "why", "workflow",
+}
 
 
 class LLMService:
     """Orchestrates prompt assembly and LLM generation for codebase Q&A."""
 
     def __init__(self, provider: Optional[LLMProvider] = None) -> None:
+        self._provider_injected = provider is not None
         self.provider = provider or get_llm_provider()
+
+    @staticmethod
+    def _is_simple_query(query: str) -> bool:
+        """Identify short lookups that do not ask for broad synthesis or reasoning."""
+        words = re.findall(r"[a-z0-9]+", query.casefold())
+        return (
+            bool(words)
+            and len(words) <= _SIMPLE_QUERY_MAX_WORDS
+            and len(query) <= _SIMPLE_QUERY_MAX_CHARS
+            and not (_SYNTHESIS_TERMS & set(words))
+            and not {"and", "or", "versus"}.intersection(words)
+        )
 
     def _build_context_prompt(
         self, retrieved_chunks: List[RetrievedChunk], repo_name: str
@@ -118,8 +140,22 @@ class LLMService:
             LLMMessage(role="user", content=user_content),
         ]
 
-        logger.info("Calling LLM provider %s for query", self.provider.get_provider_name())
-        response = await self.provider.complete(messages)
+        provider = self.provider
+        max_tokens = None
+        simple_model = settings.LLM_SIMPLE_MODEL.strip()
+        can_route = settings.LLM_PROVIDER.lower() in {"openai", "gemini", "ollama"}
+        if (
+            simple_model
+            and can_route
+            and not self._provider_injected
+            and self._is_simple_query(query)
+        ):
+            provider = get_llm_provider(model_name=simple_model)
+            max_tokens = min(settings.OPENAI_LLM_MAX_TOKENS, 512)
+            logger.info("Routing a simple code question to configured model %s", simple_model)
+
+        logger.info("Calling LLM provider %s for query", provider.get_provider_name())
+        response = await provider.complete(messages, max_tokens=max_tokens)
 
         # Assemble citations from retrieved chunks
         citations: List[Citation] = []

@@ -5,7 +5,7 @@ from app.providers.llm.base import LLMProvider
 
 
 @lru_cache()
-def get_llm_provider(provider_name: str | None = None) -> LLMProvider:
+def get_llm_provider(provider_name: str | None = None, model_name: str | None = None) -> LLMProvider:
     """Return a singleton LLM provider based on the LLM_PROVIDER env var.
 
     Currently supported:
@@ -15,13 +15,13 @@ def get_llm_provider(provider_name: str | None = None) -> LLMProvider:
     provider = (provider_name or settings.LLM_PROVIDER).lower()
     if provider == "openai":
         from app.providers.llm.openai_provider import OpenAIProvider
-        return OpenAIProvider()
+        return OpenAIProvider(model_name=model_name)
     elif provider == "gemini":
         from app.providers.llm.gemini_provider import GeminiProvider
-        return GeminiProvider()
+        return GeminiProvider(model_name=model_name)
     elif provider == "ollama":
         from app.providers.llm.ollama_provider import OllamaProvider
-        return OllamaProvider()
+        return OllamaProvider(model_name=model_name)
     elif provider in ("mock", "local"):
         from app.providers.llm.mock_llm import MockLLMProvider
         return MockLLMProvider()

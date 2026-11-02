@@ -114,6 +114,10 @@ The LLM and Embedding layers are fully abstracted:
 # Switch LLM provider with one env var
 LLM_PROVIDER=openai      # or: anthropic (Phase 4)
 
+# Optional: route short, direct code lookups to a smaller model supported by
+# the selected provider. Leave blank to keep all questions on the primary model.
+LLM_SIMPLE_MODEL=
+
 # Switch embedding provider with one env var
 EMBEDDING_PROVIDER=openai  # or: local (Phase 4, Ollama)
 ```
@@ -133,6 +137,10 @@ EMBEDDING_DIMENSION=768
 The selected embedding model must return vectors matching
 `EMBEDDING_DIMENSION`. Local providers avoid hosted inference charges, but use
 the machine's own memory and compute.
+
+`LLM_SIMPLE_MODEL` is opt-in and provider-specific. When configured, short,
+direct questions without broad synthesis terms use that model with a 512-token
+output cap; complex questions continue to use the configured primary model.
 
 ---
 
