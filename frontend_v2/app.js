@@ -336,7 +336,7 @@ function mountDependencyGraph() {
 
 function renderChatAnswer(question, answer) {
   const citations = (answer.citations || []).map((citation) => `<span class="citation">${escapeHtml(citation.file_path)}:${citation.start_line}-${citation.end_line}</span>`).join("");
-  return `<div class="message"><p>${escapeHtml(answer.answer).replace(/\n/g, "<br />")}</p><p class="muted">${escapeHtml(answer.model)} · ${answer.retrieval_count} retrieved chunks · ${(answer.citation_coverage * 100).toFixed(0)}% citation coverage</p><div>${citations}</div><div class="chat-feedback" role="group" aria-label="Answer feedback"><span>Was this answer helpful?</span><button class="feedback-button" data-action="answer-feedback" data-rating="helpful" type="button" aria-label="Mark answer helpful">👍 Helpful</button><button class="feedback-button" data-action="answer-feedback" data-rating="not_helpful" type="button" aria-label="Mark answer not helpful">👎 Not helpful</button><span id="feedback-status" class="feedback-status" role="status" aria-live="polite"></span></div></div>`;
+  return `<div class="message"><p>${escapeHtml(answer.answer).replace(/\n/g, "<br />")}</p><p class="muted">${escapeHtml(answer.model)} · ${answer.retrieval_count} retrieved chunks · ${(answer.citation_coverage * 100).toFixed(0)}% citation coverage${answer.tools_used?.length ? ` · Tools: ${answer.tools_used.map(escapeHtml).join(", ")}` : ""}</p><div>${citations}</div><div class="chat-feedback" role="group" aria-label="Answer feedback"><span>Was this answer helpful?</span><button class="feedback-button" data-action="answer-feedback" data-rating="helpful" type="button" aria-label="Mark answer helpful">👍 Helpful</button><button class="feedback-button" data-action="answer-feedback" data-rating="not_helpful" type="button" aria-label="Mark answer not helpful">👎 Not helpful</button><span id="feedback-status" class="feedback-status" role="status" aria-live="polite"></span></div></div>`;
 }
 
 async function submitAnswerFeedback(button) {
@@ -367,7 +367,7 @@ async function submitAnswerFeedback(button) {
 
 function chatView(id) {
   if (!token()) return authView();
-  return shell(`<div class="chat"><div><a class="muted" href="#repo/${id}">← Back to repository</a><p class="eyebrow" style="margin-top:28px">Cited code Q&A</p><h1 style="font-size:38px">Ask the codebase.</h1><p class="lede" style="font-size:14px">Answers are grounded in indexed source chunks and return file/symbol/line citations.</p></div><div id="chat-log"></div><form id="chat-form" class="card"><div class="form-row"><label for="question">Your question</label><textarea id="question" name="question" placeholder="Where is authentication implemented, and what calls it?" required></textarea></div><button class="button primary" type="submit">Ask with citations</button></form></div>`);
+  return shell(`<div class="chat"><div><a class="muted" href="#repo/${id}">← Back to repository</a><p class="eyebrow" style="margin-top:28px">Cited code Q&A</p><h1 style="font-size:38px">Ask the codebase.</h1><p class="lede" style="font-size:14px">Use direct cited Q&A, or let the bounded agent choose repository tools for history, impact, tests, and source.</p></div><div id="chat-log"></div><form id="chat-form" class="card"><div class="form-row"><label for="question">Your question</label><textarea id="question" name="question" placeholder="Where is authentication implemented, and what calls it?" required></textarea></div><div class="actions"><button class="button primary" type="submit">Ask with citations</button><button class="button secondary" data-action="ask-agent" type="button">Ask agent with tools</button></div></form></div>`);
 }
 
 async function runSecurityScan(button) {
@@ -450,7 +450,33 @@ async function render() {
   }
 }
 
+async function submitAgentQuestion(button) {
+  const form = document.querySelector("#chat-form");
+  const question = String(new FormData(form).get("question") || "").trim();
+  if (!question) { form.querySelector("textarea").focus(); return; }
+  const log = document.querySelector("#chat-log");
+  const sendButton = form.querySelector("button[type='submit']");
+  button.disabled = true;
+  sendButton.disabled = true;
+  button.textContent = "Agent working…";
+  state.chatAnswer = null;
+  log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${setLoading("Selecting repository tools and collecting evidence…")}`;
+  try {
+    const response = await api(`/repos/${location.hash.split("/")[1]}/agent`, { method: "POST", body: JSON.stringify({ question, top_k: 5 }) });
+    state.chatAnswer = { question, model: response.model, retrieval_count: response.retrieval_count, citations: response.citations || [] };
+    log.innerHTML = `<div class="message user">${escapeHtml(question)}</div>${renderChatAnswer(question, response)}`;
+    document.querySelectorAll("[data-action='answer-feedback']").forEach((control) => control.addEventListener("click", () => submitAnswerFeedback(control)));
+  } catch (error) {
+    log.innerHTML = errorBox(error.message);
+  } finally {
+    button.disabled = false;
+    sendButton.disabled = false;
+    button.textContent = "Ask agent with tools";
+  }
+}
+
 function bindEvents() {
+  document.querySelector("[data-action='ask-agent']")?.addEventListener("click", (event) => submitAgentQuestion(event.currentTarget));
   document.querySelector("[data-action='cross-impact']")?.addEventListener("click", async (event) => {
     const button = event.currentTarget;
     const resultBox = document.querySelector("#cross-impact-results");

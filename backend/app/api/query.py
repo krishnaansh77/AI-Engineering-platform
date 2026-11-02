@@ -10,7 +10,7 @@ from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis import asyncio as redis
 
-from app.api.schemas import CitationSchema, EvaluationRequest, FeedbackRequest, QueryRequest, QueryResponse, SearchResponse, SearchResultSchema
+from app.api.schemas import AgentRequest, AgentResponse, CitationSchema, EvaluationRequest, FeedbackRequest, QueryRequest, QueryResponse, SearchResponse, SearchResultSchema
 from app.api.errors import error_detail
 from app.api.auth import get_current_user, require_repository_access
 from app.config import settings
@@ -23,6 +23,7 @@ from app.services.retrieval_service import RetrievalService
 from app.services.query_cache import build_query_cache_key
 from app.services.evaluation_service import aggregate_scores, score_retrieval
 from app.services.usage_service import consume_llm_request, estimate_llm_cost
+from app.services.agent_service import RepositoryAgent
 from app.providers.llm.factory import get_llm_provider
 
 logger = logging.getLogger(__name__)
@@ -183,6 +184,42 @@ async def query_repository(
     )
     await _write_cached_query(cache_key, response.model_dump())
     return response
+
+
+@router.post("/repos/{repo_id}/agent", response_model=AgentResponse)
+async def ask_repository_agent(
+    repo_id: uuid.UUID,
+    payload: AgentRequest,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user),
+) -> AgentResponse:
+    """Run a bounded repository tool plan, then synthesize an evidence-grounded answer."""
+    repo = await db.scalar(select(Repository).where(Repository.id == repo_id))
+    if not repo:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Repository not found")
+    if repo.status != "ready":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must be ready before the agent can run.")
+    allowed, _remaining = await consume_llm_request(settings.REDIS_URL, user.id, settings.LLM_DAILY_REQUEST_LIMIT)
+    if not allowed:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=error_detail("LLM_DAILY_LIMIT", "Your daily AI request budget is exhausted.", True))
+    chunks, evidence = await RepositoryAgent().run(repo, payload.question, db, payload.top_k)
+    try:
+        answer = await LLMService().answer_query(
+            query=RepositoryAgent.evidence_prompt(payload.question, evidence),
+            retrieved_chunks=chunks,
+            repo_name=repo.full_name,
+        )
+    except Exception as exc:
+        logger.exception("Repository agent synthesis failed for %s", repo_id)
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=error_detail("AGENT_UNAVAILABLE", "The repository agent could not synthesize this result. Try code search or cited Q&A instead.", True)) from exc
+    return AgentResponse(
+        answer=answer.answer,
+        model=answer.model,
+        retrieval_count=len(chunks),
+        citation_coverage=answer.citation_coverage,
+        citations=[CitationSchema(file_path=c.file_path, symbol_name=c.symbol_name, chunk_type=c.chunk_type, start_line=c.start_line, end_line=c.end_line) for c in answer.citations],
+        tools_used=[item["tool"] for item in evidence],
+    )
 
 
 @router.get("/repos/{repo_id}/search", response_model=SearchResponse)

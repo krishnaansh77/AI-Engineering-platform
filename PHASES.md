@@ -421,10 +421,10 @@
 
 ### 4.11 — AI Agent Layer (#23)
 
-- [ ] Orchestrator agent
+- [x] Bounded repository agent orchestrator with transparent tool selection and cited synthesis
 - [ ] Specialized sub-agents: Code Agent, Git Agent, Docs Agent
 - [ ] LangGraph or similar orchestration framework
-- [ ] Tool definitions: search_code, get_file, get_history, get_impact, get_tests
+- [x] Tool definitions and execution: search_code, get_file, get_history, get_impact, get_tests
 
 ---
 

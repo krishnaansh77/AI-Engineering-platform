@@ -153,6 +153,12 @@ class QueryRequest(BaseModel):
     top_k: int = Field(5, ge=1, le=20, description="Number of source chunks to retrieve")
 
 
+class AgentRequest(BaseModel):
+    """Bounded repository-agent question payload."""
+    question: str = Field(..., min_length=1, max_length=4000)
+    top_k: int = Field(5, ge=1, le=10)
+
+
 class QueryResponse(BaseModel):
     """AI answer with cited code locations."""
     answer: str
@@ -161,6 +167,10 @@ class QueryResponse(BaseModel):
     retrieval_count: int
     citation_coverage: float = Field(0.0, ge=0.0, le=1.0)
     cached: bool = False
+
+
+class AgentResponse(QueryResponse):
+    tools_used: List[str] = Field(default_factory=list)
 
 
 class SearchResultSchema(BaseModel):
