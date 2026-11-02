@@ -23,6 +23,7 @@ from app.api.schemas import (
     RepoStatsResponse,
     RepositoryResponse,
     SourceFileResponse,
+    SearchResultSchema,
 )
 from app.api.errors import error_detail
 from app.database import AsyncSessionLocal, get_db
@@ -163,6 +164,58 @@ async def list_repositories(
     stmt = select(Repository).where(or_(Repository.owner_id == user.id, Repository.workspace_id.in_(visible_workspaces))).order_by(desc(Repository.created_at)) if visible_workspaces else select(Repository).where(Repository.owner_id == user.id).order_by(desc(Repository.created_at))
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+@router.get("/search/all")
+async def search_all_repositories(
+    q: str = Query(..., min_length=1, max_length=500),
+    top_k: int = Query(default=5, ge=1, le=10),
+    workspace_id: uuid.UUID | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Search ready repositories visible to the current user, without an LLM call."""
+    memberships = await db.scalars(
+        select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user.id)
+    )
+    workspace_ids = list(memberships.all())
+    if workspace_id and workspace_id not in workspace_ids:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="You are not a member of the selected workspace.")
+    visible_workspaces = [workspace_id] if workspace_id else workspace_ids
+    statement = (
+        select(Repository)
+        .where(
+            Repository.status == "ready",
+            or_(Repository.owner_id == user.id, Repository.workspace_id.in_(visible_workspaces))
+            if visible_workspaces
+            else Repository.owner_id == user.id,
+        )
+        .order_by(desc(Repository.created_at))
+        .limit(10)
+    )
+    result = await db.execute(statement)
+    repositories = list(result.scalars().all())
+    search = RetrievalService()
+    matches = []
+    for repository in repositories:
+        chunks = await search.retrieve(query=q, repo_id=repository.id, db=db, top_k=20, final_k=top_k)
+        for chunk in chunks:
+            matches.append({
+                "repository_id": str(repository.id),
+                "repository_name": repository.name or repository.full_name,
+                "full_name": repository.full_name,
+                **SearchResultSchema(
+                    file_path=chunk.file_path,
+                    symbol_name=chunk.symbol_name,
+                    chunk_type=chunk.chunk_type,
+                    start_line=chunk.start_line,
+                    end_line=chunk.end_line,
+                    snippet=chunk.content[:800],
+                    score=round(chunk.score, 6),
+                ).model_dump(),
+            })
+    matches.sort(key=lambda item: item["score"], reverse=True)
+    return {"query": q, "repositories_searched": len(repositories), "results": matches[:20]}
 
 
 @router.get("/{repo_id}", response_model=RepositoryResponse, dependencies=[Depends(require_repository_access)])

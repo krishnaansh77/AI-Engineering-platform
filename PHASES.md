@@ -371,7 +371,7 @@
 
 - [x] Workspace-scoped repository ownership and membership foundation
 - [ ] Cross-repo dependency graph
-- [ ] Cross-repo search
+- [x] Cross-repository hybrid code search for accessible ready repositories
 - [ ] Impact analysis across repo boundaries
 
 ---

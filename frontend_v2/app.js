@@ -37,7 +37,7 @@ async function dashboard() {
     const [user, repos] = await Promise.all([api("/auth/me"), api("/repos")]);
     state.user = user;
     const ready = repos.filter((repo) => repo.status === "ready").length;
-    return shell(`<div class="hero"><div><p class="eyebrow">Engineering intelligence</p><h1>Understand your codebase before you change it.</h1><p class="lede">Search, explain, map, and review repositories with evidence-backed answers and actionable change context.</p></div><div class="actions"><a class="button primary" href="#connect">Connect repository</a></div></div><div class="grid stats"><div class="card"><span class="metric-label">Repositories</span><strong class="metric-value">${repos.length}</strong></div><div class="card"><span class="metric-label">Ready to query</span><strong class="metric-value">${ready}</strong></div><div class="card"><span class="metric-label">Access role</span><strong class="metric-value">${escapeHtml(user.role)}</strong></div><div class="card"><span class="metric-label">Account</span><strong class="metric-value" style="font-size:15px;word-break:break-word">${escapeHtml(user.email)}</strong></div></div><div class="section-head"><div><p class="eyebrow">Your workspace</p><h2>Repositories</h2></div></div>${repos.length ? `<div class="grid cards">${repos.map(repoCard).join("")}</div>` : `<div class="empty"><h3>No repositories connected</h3><p>Connect a GitHub repository to start indexing and asking questions.</p><a class="button primary" href="#connect">Connect your first repository</a></div>`}<div class="section-head"><div><p class="eyebrow">What works here</p><h2>One workspace for code intelligence</h2></div></div><div class="grid cards">${feature("01", "Evidence-backed Q&A", "Ask where behavior lives and get citations down to file and line ranges.")}${feature("02", "Change intelligence", "See history, dependency impact, related tests, and documentation risk before merging.")}${feature("03", "Quality signals", "Track retrieval quality, citation coverage, documentation gaps, technical debt, and secret-scan findings.")}</div>`);
+    return shell(`<div class="hero"><div><p class="eyebrow">Engineering intelligence</p><h1>Understand your codebase before you change it.</h1><p class="lede">Search, explain, map, and review repositories with evidence-backed answers and actionable change context.</p></div><div class="actions"><a class="button primary" href="#connect">Connect repository</a></div></div><div class="grid stats"><div class="card"><span class="metric-label">Repositories</span><strong class="metric-value">${repos.length}</strong></div><div class="card"><span class="metric-label">Ready to query</span><strong class="metric-value">${ready}</strong></div><div class="card"><span class="metric-label">Access role</span><strong class="metric-value">${escapeHtml(user.role)}</strong></div><div class="card"><span class="metric-label">Account</span><strong class="metric-value" style="font-size:15px;word-break:break-word">${escapeHtml(user.email)}</strong></div></div><section class="card workspace-search"><div><p class="eyebrow">Across your repositories</p><h2>Search code once.</h2><p class="muted">Find matching code in up to 10 ready repositories you can access.</p></div><form id="workspace-search-form"><label class="sr-only" for="workspace-search-query">Search all repositories</label><input id="workspace-search-query" name="q" maxlength="500" required placeholder="Try: password reset, invoice status, feature flag…"/><button class="button primary" type="submit">Search code</button></form><div id="workspace-search-results" class="workspace-search-results" aria-live="polite"></div></section><div class="section-head"><div><p class="eyebrow">Your workspace</p><h2>Repositories</h2></div></div>${repos.length ? `<div class="grid cards">${repos.map(repoCard).join("")}</div>` : `<div class="empty"><h3>No repositories connected</h3><p>Connect a GitHub repository to start indexing and asking questions.</p><a class="button primary" href="#connect">Connect your first repository</a></div>`}<div class="section-head"><div><p class="eyebrow">What works here</p><h2>One workspace for code intelligence</h2></div></div><div class="grid cards">${feature("01", "Evidence-backed Q&A", "Ask where behavior lives and get citations down to file and line ranges.")}${feature("02", "Change intelligence", "See history, dependency impact, related tests, and documentation risk before merging.")}${feature("03", "Quality signals", "Track retrieval quality, citation coverage, documentation gaps, technical debt, and secret-scan findings.")}</div>`);
   } catch (error) { return shell(errorBox(error.message)); }
 }
 
@@ -451,6 +451,28 @@ async function render() {
 }
 
 function bindEvents() {
+  document.querySelector("#workspace-search-form")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const query = String(new FormData(form).get("q") || "").trim();
+    const button = form.querySelector("button[type='submit']");
+    const results = document.querySelector("#workspace-search-results");
+    button.disabled = true;
+    button.textContent = "Searching…";
+    results.innerHTML = setLoading("Searching accessible repositories…");
+    try {
+      const response = await api(`/repos/search/all?q=${encodeURIComponent(query)}`);
+      results.innerHTML = response.results.length
+        ? `<p class="muted">${response.results.length} matches across ${response.repositories_searched} ready repositories.</p><div class="workspace-search-list">${response.results.map((item) => `<article class="workspace-search-result"><div><strong>${escapeHtml(item.repository_name)}</strong><span>${escapeHtml(item.full_name)} · ${escapeHtml(item.file_path)}:${item.start_line}-${item.end_line}</span></div><pre>${escapeHtml(item.snippet)}</pre><button class="button secondary compact-button" data-action="preview-source" data-id="${escapeHtml(item.repository_id)}" data-path="${encodeURIComponent(item.file_path)}" type="button">Open source</button></article>`).join("")}</div>`
+        : `<p class="muted">No matches in ${response.repositories_searched} ready repositories.</p>`;
+      results.querySelectorAll("[data-action='preview-source']").forEach((preview) => preview.addEventListener("click", () => { location.hash = `source/${preview.dataset.id}/${preview.dataset.path}`; }));
+    } catch (error) {
+      results.innerHTML = errorBox(error.message);
+    } finally {
+      button.disabled = false;
+      button.textContent = "Search code";
+    }
+  });
   document.querySelector("[data-action='toggle-auth']")?.addEventListener("click", () => { state.authMode = state.authMode === "login" ? "register" : "login"; render(); });
   document.querySelector("[data-action='signout']")?.addEventListener("click", () => { localStorage.removeItem("aise_access_token"); state.user = null; location.hash = "auth"; });
   document.querySelector("#workspace-form")?.addEventListener("submit", async (event) => { event.preventDefault(); const form = new FormData(event.currentTarget); try { await api("/auth/workspaces", { method: "POST", body: JSON.stringify({ name: form.get("name") }) }); render(); } catch (error) { document.querySelector("#workspace-error").innerHTML = errorBox(error.message); } });

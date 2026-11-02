@@ -167,9 +167,9 @@ feedback endpoints.
 
 The observability slice is now implemented in the redesigned Account page, and
 the repository page exposes the existing opt-in redacted secret scan. Remaining
-Phase 4 work is the deeper intelligence layer: cross-repository/version-aware
-search, agent tooling, and Django
-database-parity verification. Bandit and security-focused ESLint checks now run in CI.
+Phase 4 work is the deeper intelligence layer: version-aware search, agent tooling,
+and Django database-parity verification. Bandit and security-focused ESLint checks
+now run in CI. The dashboard now searches indexed code across accessible repositories.
 
 #### Active redesign migration
 

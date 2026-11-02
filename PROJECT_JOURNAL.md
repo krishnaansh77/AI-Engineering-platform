@@ -50,6 +50,8 @@
 - FastAPI request tracing can now export OTLP spans when
   `OTEL_EXPORTER_OTLP_ENDPOINT` is configured; it remains disabled by default,
   and `/health` reports whether an endpoint is configured.
+- The dashboard now runs hybrid code search across up to ten ready repositories
+  visible to the signed-in user and links each result to its source file.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---

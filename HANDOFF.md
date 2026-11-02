@@ -244,8 +244,10 @@ and should remain on Railway or an equivalent service.
 - [x] Added optional FastAPI request tracing over OTLP. Set
   `OTEL_EXPORTER_OTLP_ENDPOINT` to a compatible collector to enable it; tracing
   stays off when unset. The configured collector supplies trace viewing/export.
-- [ ] Phase 4 next: evaluate whether Django parity or cross-repository search is
-  the next best slice; Django production cutover remains blocked by Railway capacity.
+- [x] Added cross-repository hybrid code search to the dashboard, scoped to
+  repositories the signed-in user can access.
+- [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
+  cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
   attempting any production API cutover; the current Railway free-plan limit
   still blocks provisioning a separate Django service.
