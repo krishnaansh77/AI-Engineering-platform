@@ -15,6 +15,8 @@ class TestSecretScanService(unittest.TestCase):
             self.assertEqual(result["finding_count"], 1)
             self.assertNotIn("super-secret-value-123", result["findings"][0]["redacted_preview"])
             self.assertEqual(result["findings"][0]["line"], 1)
+            self.assertIn("hard-coded token", result["findings"][0]["why_it_matters"])
+            self.assertIn("rotate", result["findings"][0]["suggested_fix"].lower())
 
     def test_marks_scan_as_heuristic(self):
         result = SecretScanService().scan("/tmp", [])

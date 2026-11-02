@@ -254,6 +254,8 @@ and should remain on Railway or an equivalent service.
   search/file/history/impact/test tools, then synthesizes a cited answer. The V2
   chat exposes it beside direct Q&A. Four focused planner/tool-resilience tests
   pass. Specialized sub-agents and LangGraph remain open.
+- [x] Security quick check now returns and displays finding-specific rationale
+  and remediation guidance alongside redacted code context and file location.
 - [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before

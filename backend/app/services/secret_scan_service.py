@@ -5,10 +5,12 @@ from typing import Dict, List
 
 
 PATTERNS = (
-    ("private_key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"), "high"),
-    ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "high"),
-    ("generic_api_key", re.compile(r"(?i)\b(?:api[_-]?key|secret|token)\s*[:=]\s*['\"][^'\"]{12,}['\"]"), "medium"),
+    ("private_key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"), "high", "A private key can authorize access as its owner."),
+    ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b"), "high", "An AWS access key may grant access to cloud resources."),
+    ("generic_api_key", re.compile(r"(?i)\b(?:api[_-]?key|secret|token)\s*[:=]\s*['\"][^'\"]{12,}['\"]"), "medium", "A hard-coded token or key can be copied and reused outside this repository."),
 )
+
+SUGGESTED_FIX = "Revoke or rotate the credential, remove it from source control, and load it from a secret manager or environment variable."
 
 
 class SecretScanService:
@@ -25,13 +27,15 @@ class SecretScanService:
                 continue
             scanned_files += 1
             for line_number, line in enumerate(content.splitlines(), start=1):
-                for pattern_name, pattern, confidence in PATTERNS:
+                for pattern_name, pattern, confidence, why in PATTERNS:
                     if pattern.search(line):
                         findings.append({
                             "file_path": file_info["relative_path"],
                             "line": line_number,
                             "pattern": pattern_name,
                             "confidence": confidence,
+                            "why_it_matters": why,
+                            "suggested_fix": SUGGESTED_FIX,
                             "redacted_preview": re.sub(r"(['\"])[^'\"]{4,}(['\"])", r"\1[REDACTED]\2", line.strip())[:240],
                         })
                         break

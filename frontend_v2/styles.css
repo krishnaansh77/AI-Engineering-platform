@@ -166,6 +166,7 @@ textarea { min-height: 140px; resize: vertical; }
 .security-finding strong { color: var(--red); font-size: 12px; }
 .security-finding span { color: var(--muted); font-size: 11px; }
 .security-finding code { overflow: auto; color: #6d3333; font-size: 11px; white-space: pre-wrap; }
+.security-finding p { margin: 4px 0 0; color: var(--ink); font-size: 12px; line-height: 1.45; }
 .workspace-search { display: grid; gap: 18px; margin: 26px 0; }
 .workspace-search h2 { margin: 4px 0; }
 .workspace-search form { display: flex; gap: 10px; }
