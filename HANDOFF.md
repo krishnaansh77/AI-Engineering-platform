@@ -287,7 +287,9 @@ and should remain on Railway or an equivalent service.
 - [x] Pushed branch/tag Q&A as commit `f9b5e6c`. Production health verified at
   migration revision `009_repository_versions`; Vercel serves the new frontend
   and proxies the version API routes.
-- [ ] The compare view is currently local until its follow-up commit deploys.
+- [x] Pushed the comparison UI/API as commit `4636b0f`; verified the Vercel
+  frontend asset and proxied OpenAPI route after deployment. Railway reports
+  database, Redis, and migration revision `009_repository_versions` healthy.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
   attempting any production API cutover; the current Railway free-plan limit
   still blocks provisioning a separate Django service.
