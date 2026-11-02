@@ -1,18 +1,33 @@
 """Bounded repository agent that selects and runs existing analysis tools."""
+from __future__ import annotations
+
+import inspect
 import json
 import re
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import TYPE_CHECKING, Callable, Any
 
-from app.models.repository import Repository
-from app.services.github_service import GitHubService
-from app.services.graph_service import DependencyGraphService
-from app.services.retrieval_service import RetrievalService
+if TYPE_CHECKING:
+    from sqlalchemy.ext.asyncio import AsyncSession
+    from app.models.repository import Repository
+
+
+async def run_optional_tool(name: str, operation: Callable[[], Any]) -> dict:
+    """Isolate an optional tool failure while preserving an explicit result."""
+    try:
+        result = operation()
+        if inspect.isawaitable(result):
+            result = await result
+        return {"tool": name, **result}
+    except Exception:
+        return {"tool": name, "error": "This repository tool is unavailable."}
 
 
 class RepositoryAgent:
     """Run a small, transparent tool plan and return evidence for synthesis."""
 
-    async def run(self, repo: Repository, question: str, db: AsyncSession, top_k: int) -> tuple[list, list[dict]]:
+    @staticmethod
+    def plan_tools(question: str) -> list[str]:
+        """Choose bounded read-only tools using transparent question cues."""
         lowered = question.casefold()
         tools = ["search_code"]
         if any(word in lowered for word in ("commit", "history", "changed", "recent", "when")):
@@ -21,6 +36,16 @@ class RepositoryAgent:
             tools.append("get_impact")
         if any(word in lowered for word in ("test", "coverage", "untested")):
             tools.append("get_tests")
+        if re.search(r"(?:[\w.-]+/)+[\w.-]+\.[A-Za-z0-9]+", question):
+            tools.append("get_file")
+        return tools
+
+    async def run(self, repo: Repository, question: str, db: AsyncSession, top_k: int) -> tuple[list, list[dict]]:
+        from app.services.github_service import GitHubService
+        from app.services.graph_service import DependencyGraphService
+        from app.services.retrieval_service import RetrievalService
+
+        tools = self.plan_tools(question)
         path_match = re.search(r"(?:[\w.-]+/)+[\w.-]+\.[A-Za-z0-9]+", question)
         if path_match:
             tools.append("get_file")
@@ -38,16 +63,24 @@ class RepositoryAgent:
             } for chunk in retrieved],
         }]
         if "get_history" in tools and repo.clone_path:
-            evidence.append({"tool": "get_history", "commits": GitHubService().get_commit_history(repo.clone_path, 5)})
+            evidence.append(await run_optional_tool(
+                "get_history",
+                lambda: {"commits": GitHubService().get_commit_history(repo.clone_path, 5)},
+            ))
         if "get_impact" in tools and repo.clone_path:
-            graph = await DependencyGraphService().build_file_graph(repo.id, db)
-            latest = GitHubService().analyze_latest_commit(repo.clone_path)
-            changed = set(latest.get("source_files", latest.get("changed_files", [])))
-            changed.intersection_update(node["id"] for node in graph["nodes"])
-            impact = sorted(DependencyGraphService.expand_dependents(changed, graph["edges"]))
-            evidence.append({"tool": "get_impact", "commit": latest.get("short_sha"), "changed_files": sorted(changed), "impacted_files": impact})
+            try:
+                graph = await DependencyGraphService().build_file_graph(repo.id, db)
+                latest = GitHubService().analyze_latest_commit(repo.clone_path)
+                changed = set(latest.get("source_files", latest.get("changed_files", [])))
+                changed.intersection_update(node["id"] for node in graph["nodes"])
+                impact = sorted(DependencyGraphService.expand_dependents(changed, graph["edges"]))
+                evidence.append({"tool": "get_impact", "commit": latest.get("short_sha"), "changed_files": sorted(changed), "impacted_files": impact})
+            except Exception:
+                evidence.append({"tool": "get_impact", "error": "Recent change impact is unavailable."})
         if "get_tests" in tools:
-            evidence.append({"tool": "get_tests", **(await DependencyGraphService().build_test_summary(repo.id, db))})
+            async def get_test_summary():
+                return await DependencyGraphService().build_test_summary(repo.id, db)
+            evidence.append(await run_optional_tool("get_tests", get_test_summary))
         if "get_file" in tools and repo.clone_path:
             try:
                 source = GitHubService().read_source_file(repo.clone_path, path_match.group(0), max_bytes=12_000)

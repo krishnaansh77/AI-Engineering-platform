@@ -252,7 +252,8 @@ and should remain on Railway or an equivalent service.
   runtime validation with a pulled model remains open.
 - [x] Started the AI agent layer: authenticated `/repos/{id}/agent` plans bounded
   search/file/history/impact/test tools, then synthesizes a cited answer. The V2
-  chat exposes it beside direct Q&A. Specialized sub-agents and LangGraph remain open.
+  chat exposes it beside direct Q&A. Four focused planner/tool-resilience tests
+  pass. Specialized sub-agents and LangGraph remain open.
 - [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before

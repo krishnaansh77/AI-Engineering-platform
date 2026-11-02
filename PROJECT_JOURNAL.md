@@ -60,7 +60,8 @@
   server with the configured model pulled.
 - The first agent slice adds protected tool planning/execution for code search,
   source reads, recent history, local change impact, and test relationships, then
-  synthesizes the bounded evidence with source citations in the chat UI.
+  synthesizes the bounded evidence with source citations in the chat UI. Four
+  focused agent planner/tool-failure tests pass.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
