@@ -329,46 +329,47 @@
 
 **Features from spec**: #19, #20, #21, #22, #23, #24, #25, #26, #27, #28, #29
 
-**Status**: 🔲 Not Started | **Prerequisite**: Phase 3 complete
+**Status**: 🚧 In Progress | **Prerequisite**: Phase 3 complete
 
 ---
 
 ### 4.1 — Authentication & RBAC (#26)
 
-- [ ] User accounts (GitHub OAuth login)
-- [ ] Role-based access: developer, manager, admin
-- [ ] Per-repository permissions
+- [x] User accounts (password registration/login; GitHub OAuth remains open)
+- [x] Role-based access: member, owner/admin safeguards, and workspace roles
+- [x] Per-repository permissions through ownership/workspace membership
 
 ---
 
 ### 4.2 — Observability (#27)
 
 - [ ] Structured logging (JSON logs → OpenTelemetry)
-- [ ] Metrics: query latency, retrieval latency, LLM latency, token usage
+- [x] Metrics: query latency, retrieval latency, LLM latency, token usage
 - [ ] Tracing: end-to-end request traces
-- [ ] Dashboard (Grafana or similar)
+- [ ] Dashboard (Grafana or similar; no-cost hosted dashboard not selected)
 
 ---
 
 ### 4.3 — RAG Evaluation (#24)
 
-- [ ] Build eval dataset: question → expected citations
-- [ ] Measure: Recall@K, MRR, answer relevance, faithfulness, citation accuracy
-- [ ] Run eval suite on every change to retrieval pipeline
+- [x] Build eval dataset: question → expected citations
+- [x] Measure: Recall@K, MRR, expected-file hit rate, latency, and citation coverage
+- [x] Run eval suite in CI against the seeded retrieval database
 - [ ] Display eval results in admin dashboard
 
 ---
 
 ### 4.4 — Feedback Loop (#25)
 
-- [ ] 👍 / 👎 buttons on Q&A responses
-- [ ] Store negative feedback + query for later analysis
-- [ ] Use feedback to identify retrieval failures
+- [x] 👍 / 👎 buttons on Q&A responses
+- [x] Store negative feedback + query for later analysis
+- [x] Use feedback to identify retrieval and citation-quality failures
 
 ---
 
 ### 4.5 — Multi-Repository Support (#20)
 
+- [x] Workspace-scoped repository ownership and membership foundation
 - [ ] Cross-repo dependency graph
 - [ ] Cross-repo search
 - [ ] Impact analysis across repo boundaries
@@ -400,10 +401,10 @@
 
 ### 4.9 — Cost Optimization (#28)
 
-- [ ] Query result caching (Redis)
+- [x] Query result caching (Redis)
 - [ ] Route simple queries to smaller/cheaper models
 - [ ] Context compression before LLM call
-- [ ] Embedding reuse — skip re-embedding unchanged files
+- [x] Embedding reuse — skip re-embedding unchanged files
 
 ---
 

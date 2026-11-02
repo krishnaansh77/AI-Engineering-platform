@@ -158,6 +158,12 @@ The repository now has `.github/workflows/ci.yml`. It uses mock providers for ba
 
 ### Phase 4 — Production and advanced capabilities
 
+Phase 4 is active. The first user-facing slice in this phase is now complete:
+the redesigned chat records Helpful/Not helpful ratings through the existing
+protected feedback endpoint, and repository detail displays the aggregate
+helpful rate. The next no-cost slice is a compact observability view built from
+the existing query metrics, usage, health, and feedback endpoints.
+
 #### Active redesign migration
 
 - Target stack: Django/Django REST Framework API with a vanilla JavaScript,

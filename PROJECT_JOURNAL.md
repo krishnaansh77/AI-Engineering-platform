@@ -36,6 +36,9 @@
   summary, a main user-flow row, and a separate support row for shared helpers,
   app-frame files, tests, and setup. The layout becomes a vertical path on small
   screens so the structure remains readable without wasting space.
+- Phase 4 feedback-loop work has started: the JavaScript chat now records
+  Helpful/Not helpful answer ratings, and repository detail exposes the current
+  helpful-rate summary. Next priority is a compact no-cost observability view.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---

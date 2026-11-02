@@ -165,6 +165,9 @@ and should remain on Railway or an equivalent service.
   separate **Developer file map** tab retains Cytoscape import detail. The local
   Eternixx1 smoke test verified the compact blueprint and stage drill-down; the
   backend suite remains `65 passed, 4 skipped`.
+- [x] Started the Phase 4 feedback loop in the redesigned frontend: chat answers
+  now expose Helpful/Not helpful controls backed by the protected feedback API,
+  and repository detail shows the aggregate helpful rate and rating count.
 
 ### No-cost production decision
 
@@ -224,6 +227,13 @@ and should remain on Railway or an equivalent service.
   the same API contract. Initial auth, dashboard, repository, chat, account,
   and documentation routes are in `frontend_v2/`; feature parity and browser
   verification remain.
+- [x] Start Phase 4 feedback-loop delivery in `frontend_v2/`: answer ratings
+  and repository-level feedback summary are wired to the existing API.
+- [ ] Phase 4 next: add a no-cost observability surface for query latency,
+  retrieval latency, provider latency, token usage, and feedback trends.
+- [ ] Phase 4 later: finish Django database-backed parity verification before
+  attempting any production API cutover; the current Railway free-plan limit
+  still blocks provisioning a separate Django service.
 
 ## Feature parity checklist
 
@@ -231,7 +241,7 @@ and should remain on Railway or an equivalent service.
 - [ ] Workspace creation, switching, invitations, roles, member removal
 - [ ] Repository connect, list, detail, re-index, delete
 - [ ] Indexing progress and error recovery
-- [ ] Codebase chat with citations and feedback
+- [x] Codebase chat with citations and feedback
 - [ ] Semantic/keyword code search
 - [ ] Dependency graph and impact analysis
 - [ ] Architecture explorer
