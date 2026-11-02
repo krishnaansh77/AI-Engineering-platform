@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     GEMINI_LLM_MODEL: str = "gemini-3.8-flash"
     OLLAMA_BASE_URL: str = "http://localhost:11434"
     OLLAMA_LLM_MODEL: str = "llama3.2"
+    OLLAMA_EMBEDDING_MODEL: str = "nomic-embed-text"
 
     # Anthropic (Phase 4)
     ANTHROPIC_API_KEY: str = ""
@@ -47,7 +48,7 @@ class Settings(BaseSettings):
     EMBEDDING_PROVIDER: str = "openai"
     OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
     GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-001"
-    EMBEDDING_DIMENSION: int = 768  # 768 for Gemini embeddings, 1536 for OpenAI
+    EMBEDDING_DIMENSION: int = 768  # Must match the selected provider/model vector size.
 
     # ── GitHub ────────────────────────────────────────────────────────────────
     GITHUB_PAT: str = ""

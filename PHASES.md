@@ -412,9 +412,9 @@
 
 ### 4.10 — Local LLM Mode (#29)
 
-- [ ] Ollama integration
-- [ ] Configurable: `LLM_PROVIDER=ollama`
-- [ ] Configurable: `EMBEDDING_PROVIDER=local`
+- [x] Ollama chat integration
+- [x] Configurable: `LLM_PROVIDER=ollama`
+- [x] Configurable: `EMBEDDING_PROVIDER=local` using Ollama `/api/embed`
 - [ ] Test with Llama 3 / Mistral
 
 ---

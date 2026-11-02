@@ -118,6 +118,22 @@ LLM_PROVIDER=openai      # or: anthropic (Phase 4)
 EMBEDDING_PROVIDER=openai  # or: local (Phase 4, Ollama)
 ```
 
+For fully local chat and embeddings, run Ollama on a machine reachable by the
+backend, pull a chat model and an embedding model, then configure:
+
+```text
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_LLM_MODEL=llama3.2
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+LLM_PROVIDER=ollama
+EMBEDDING_PROVIDER=local
+EMBEDDING_DIMENSION=768
+```
+
+The selected embedding model must return vectors matching
+`EMBEDDING_DIMENSION`. Local providers avoid hosted inference charges, but use
+the machine's own memory and compute.
+
 ---
 
 ## Key Files to Know

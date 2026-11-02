@@ -55,6 +55,9 @@
 - Repository detail can compare package manifests across accessible clones and
   show possible downstream repositories; the UI explicitly labels these as
   candidates because manifest matches do not prove runtime dependency.
+- `EMBEDDING_PROVIDER=local` now calls Ollama `/api/embed` and validates vector
+  dimensions. The local setup is documented; exercising it requires an Ollama
+  server with the configured model pulled.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---

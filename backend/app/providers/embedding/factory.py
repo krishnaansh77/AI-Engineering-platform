@@ -10,7 +10,7 @@ def get_embedding_provider() -> EmbeddingProvider:
 
     Currently supported:
       - "openai" → OpenAIEmbeddingProvider (default)
-      - "local"  → LocalEmbeddingProvider (Phase 4, via Ollama)
+      - "local"  → OllamaEmbeddingProvider (local Ollama server)
     """
     provider = settings.EMBEDDING_PROVIDER.lower()
     if provider == "openai":
@@ -19,7 +19,10 @@ def get_embedding_provider() -> EmbeddingProvider:
     elif provider == "gemini":
         from app.providers.embedding.gemini_embedding import GeminiEmbeddingProvider
         return GeminiEmbeddingProvider()
-    elif provider in ("mock", "local"):
+    elif provider == "local":
+        from app.providers.embedding.ollama_embedding import OllamaEmbeddingProvider
+        return OllamaEmbeddingProvider()
+    elif provider == "mock":
         from app.providers.embedding.mock_embedding import MockEmbeddingProvider
         return MockEmbeddingProvider()
     raise ValueError(

@@ -248,6 +248,8 @@ and should remain on Railway or an equivalent service.
   repositories the signed-in user can access.
 - [x] Added a repository-level downstream check that compares declared package
   identities/dependencies across accessible clones and labels matches as candidates.
+- [x] Implemented real local Ollama embeddings for `EMBEDDING_PROVIDER=local`;
+  runtime validation with a pulled model remains open.
 - [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before
