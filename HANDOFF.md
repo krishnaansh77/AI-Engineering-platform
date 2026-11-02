@@ -246,6 +246,8 @@ and should remain on Railway or an equivalent service.
   stays off when unset. The configured collector supplies trace viewing/export.
 - [x] Added cross-repository hybrid code search to the dashboard, scoped to
   repositories the signed-in user can access.
+- [x] Added a repository-level downstream check that compares declared package
+  identities/dependencies across accessible clones and labels matches as candidates.
 - [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before

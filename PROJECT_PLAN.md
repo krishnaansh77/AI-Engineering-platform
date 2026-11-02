@@ -170,6 +170,7 @@ the repository page exposes the existing opt-in redacted secret scan. Remaining
 Phase 4 work is the deeper intelligence layer: version-aware search, agent tooling,
 and Django database-parity verification. Bandit and security-focused ESLint checks
 now run in CI. The dashboard now searches indexed code across accessible repositories.
+Repository detail also surfaces manifest-matched downstream candidates for review.
 
 #### Active redesign migration
 

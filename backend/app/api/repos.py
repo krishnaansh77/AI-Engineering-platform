@@ -3,6 +3,7 @@ import asyncio
 import json
 import logging
 import uuid
+import re
 import git
 import httpx
 from datetime import datetime, timezone
@@ -38,12 +39,17 @@ from app.services.github_service import GitHubService
 from app.services.retrieval_service import RetrievalService
 from app.services.llm_service import LLMService
 from app.services.secret_scan_service import SecretScanService
+from app.services.cross_repo_impact import repository_packages
 from app.api.auth import assert_repository_owner, get_current_user, require_repository_access, require_roles
 from app.models.user import User
 from app.models.workspace import WorkspaceMember
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/repos", tags=["repositories"], dependencies=[Depends(get_current_user)])
+
+
+def _normalize_package_name(value: str) -> str:
+    return re.sub(r"[-_.]+", "-", value.strip().lower())
 
 
 async def _read_issue_cache(key: str) -> list | None:
@@ -216,6 +222,37 @@ async def search_all_repositories(
             })
     matches.sort(key=lambda item: item["score"], reverse=True)
     return {"query": q, "repositories_searched": len(repositories), "results": matches[:20]}
+
+
+@router.get("/{repo_id}/impact/cross-repository", dependencies=[Depends(require_repository_access)])
+async def cross_repository_impact(
+    repo_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Find accessible repositories declaring dependencies on this repo's packages."""
+    source = await db.scalar(select(Repository).where(Repository.id == repo_id, Repository.status == "ready"))
+    if not source or not source.clone_path:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Repository must be ready and cloned before cross-repository impact can be checked.")
+    memberships = await db.scalars(select(WorkspaceMember.workspace_id).where(WorkspaceMember.user_id == user.id))
+    workspace_ids = list(memberships.all())
+    access_filter = or_(Repository.owner_id == user.id, Repository.workspace_id.in_(workspace_ids)) if workspace_ids else Repository.owner_id == user.id
+    result = await db.execute(select(Repository).where(Repository.status == "ready", access_filter).limit(50))
+    candidates = list(result.scalars().all())
+    source_packages, _ = repository_packages(source.clone_path)
+    # Matching the connected repository's slug is useful for internal packages
+    # whose manifest omits a publishable package name.
+    source_packages.add(_normalize_package_name(source.full_name.rsplit("/", 1)[-1]))
+    dependents = []
+    if source_packages:
+        for candidate in candidates:
+            if candidate.id == source.id or not candidate.clone_path:
+                continue
+            _, dependencies = repository_packages(candidate.clone_path)
+            shared = sorted(source_packages & dependencies)
+            if shared:
+                dependents.append({"repository_id": str(candidate.id), "repository_name": candidate.name, "full_name": candidate.full_name, "matched_packages": shared, "assessment": "candidate; verify whether the changed API or behavior is used"})
+    return {"source_repository": source.full_name, "packages_checked": sorted(source_packages), "repositories_checked": len(candidates), "impact_candidates": dependents, "note": "Manifest matches identify possible downstream repositories; they do not prove runtime usage or breakage."}
 
 
 @router.get("/{repo_id}", response_model=RepositoryResponse, dependencies=[Depends(require_repository_access)])

@@ -372,7 +372,7 @@
 - [x] Workspace-scoped repository ownership and membership foundation
 - [ ] Cross-repo dependency graph
 - [x] Cross-repository hybrid code search for accessible ready repositories
-- [ ] Impact analysis across repo boundaries
+- [x] Manifest-based downstream impact candidates across accessible repositories
 
 ---
 

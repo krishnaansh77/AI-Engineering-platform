@@ -52,6 +52,9 @@
   and `/health` reports whether an endpoint is configured.
 - The dashboard now runs hybrid code search across up to ten ready repositories
   visible to the signed-in user and links each result to its source file.
+- Repository detail can compare package manifests across accessible clones and
+  show possible downstream repositories; the UI explicitly labels these as
+  candidates because manifest matches do not prove runtime dependency.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
