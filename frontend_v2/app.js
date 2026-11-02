@@ -56,13 +56,13 @@ function connectView() {
 }
 
 const storyStages = [
-  { key: "screens", icon: "1", title: "Screens people use", description: "The pages a person can open and use." },
-  { key: "work", icon: "2", title: "Work after a click", description: "The jobs the app does after someone taps a button or sends a form." },
-  { key: "building", icon: "3", title: "Shared building blocks", description: "Reusable pieces that help many parts of the app." },
-  { key: "data", icon: "4", title: "Data and outside services", description: "Where the app saves, reads, or sends information." },
+  { key: "screens", icon: "◉", title: "Screens people use", description: "The pages a person can open and use." },
+  { key: "work", icon: "⚡", title: "Work after a click", description: "The jobs the app does after someone taps a button or sends a form." },
+  { key: "building", icon: "▦", title: "Shared building blocks", description: "Reusable pieces that help many parts of the app." },
+  { key: "data", icon: "◆", title: "Data and outside services", description: "Where the app saves, reads, or sends information." },
   { key: "safety", icon: "✓", title: "Safety checks", description: "Tests that help make sure changes do not break the app." },
   { key: "setup", icon: "⚙", title: "App setup", description: "Instructions that help the app start, build, and run." },
-  { key: "other", icon: "•", title: "Other app parts", description: "Files that support the rest of the app." },
+  { key: "other", icon: "⌂", title: "App frame and helpers", description: "The pieces that start, guard, or support the app." },
 ];
 
 function storyStageForFile(filePath) {
@@ -93,20 +93,37 @@ function buildStoryMap(graph) {
   return { groups, stageById, edgeCount: edges.length };
 }
 
-function renderStoryMap(storyMap, repoId) {
+function storyStageButton(key, compact = false) {
+  const stage = storyStages.find((item) => item.key === key);
+  const files = state.storyMap?.groups.get(key) || [];
+  const examples = files.slice(0, compact ? 2 : 3).map((file) => graphLabel(file.file_path)).join(" · ");
+  return `<button class="architecture-card${state.storyStage === key ? " is-selected" : ""}${compact ? " is-support" : ""}" data-action="story-stage" data-stage="${key}" type="button" aria-pressed="${state.storyStage === key}"><span class="architecture-icon" aria-hidden="true">${stage.icon}</span><span class="architecture-card-content"><strong>${escapeHtml(stage.title)}</strong><span>${files.length} ${files.length === 1 ? "file" : "files"}</span><small>${escapeHtml(stage.description)}</small><em>${escapeHtml(examples)}</em></span></button>`;
+}
+
+function storySummary(storyMap) {
+  const count = (key) => storyMap.groups.get(key)?.length || 0;
+  const sentences = [`This is a ${count("screens") ? "front-end" : "software"} app with ${count("screens") || storyMap.groups.get("other")?.length || 0} ${count("screens") === 1 ? "screen" : "screens"}.`];
+  if (count("work")) sentences.push(`Those screens can ask ${count("work")} app actions to do work.`);
+  if (count("building")) sentences.push(`${count("building")} shared pieces are reused to build the experience.`);
+  return sentences.join(" ");
+}
+
+function connectorLabel(from, to) {
+  if (from === "screens" && to === "work") return "asks for help";
+  if (from === "work" && to === "data") return "uses data";
+  return "works with";
+}
+
+function renderStoryMap(storyMap) {
   if (!storyMap) return "";
-  const coreOrder = ["screens", "work", "building", "data", "other"];
-  const coreStages = coreOrder.filter((key) => storyMap.groups.get(key)?.length);
-  const supportStages = ["safety", "setup"].filter((key) => storyMap.groups.get(key)?.length);
-  const renderStage = (key, index, compact = false) => {
-    const stage = storyStages.find((item) => item.key === key);
-    const files = storyMap.groups.get(key) || [];
-    const examples = files.slice(0, compact ? 2 : 3).map((file) => graphLabel(file.file_path)).join(" · ");
-    return `<button class="story-step${state.storyStage === key ? " is-selected" : ""}${compact ? " is-support" : ""}" data-action="story-stage" data-stage="${key}" type="button" aria-pressed="${state.storyStage === key}"><span class="story-step-number">${stage.icon}</span><span class="story-step-content"><strong>${escapeHtml(stage.title)}</strong><span>${files.length} ${files.length === 1 ? "file" : "files"}</span><small>${escapeHtml(stage.description)}</small><em>${escapeHtml(examples)}</em></span></button>`;
-  };
-  const flow = coreStages.map((key, index) => `${index ? `<span class="story-arrow" aria-hidden="true">→</span>` : ""}${renderStage(key, index)}`).join("");
-  const support = supportStages.length ? `<div class="story-support"><span>Also found</span>${supportStages.map((key, index) => renderStage(key, index, true)).join("")}</div>` : "";
-  return `<div class="story-intro"><strong>Start here:</strong> this is a simple map of the jobs inside the repository. Pick a box to see the files behind it. The arrows describe the usual journey through an app, not every tiny code connection.</div><div class="story-flow">${flow || `<p class="muted">We found files, but not enough folder clues to tell a simple story yet.</p>`}</div>${support}<div id="story-detail" class="story-detail" role="status" aria-live="polite">Pick a box above to see the exact files. Use <strong>Developer file map</strong> only when you need every import.</div>`;
+  const mainStages = ["screens", "work", "data"].filter((key) => storyMap.groups.get(key)?.length);
+  const supportStages = ["building", "other", "safety", "setup"].filter((key) => storyMap.groups.get(key)?.length);
+  const mainFlow = mainStages.map((key, index) => {
+    const next = mainStages[index + 1];
+    return `${storyStageButton(key)}${next ? `<span class="architecture-connector" aria-hidden="true"><b>→</b><small>${connectorLabel(key, next)}</small></span>` : ""}`;
+  }).join("");
+  const supportLabel = supportStages.includes("building") ? "These pieces are reused across the app" : "Supporting parts of the app";
+  return `<div class="story-intro"><strong>In one sentence:</strong> ${escapeHtml(storySummary(storyMap))}</div><section class="architecture-blueprint" aria-label="Simple repository architecture"><div class="architecture-blueprint-head"><strong>How the pieces fit</strong><span>Pick any box to see its files.</span></div><div class="architecture-main-flow">${mainFlow || `<p class="muted">We found files, but not enough folder clues to draw a simple architecture yet.</p>`}</div>${supportStages.length ? `<div class="architecture-support"><p>${escapeHtml(supportLabel)}</p><div class="architecture-support-grid">${supportStages.map((key) => storyStageButton(key, true)).join("")}</div></div>` : ""}</section><div id="story-detail" class="story-detail" role="status" aria-live="polite">Pick a box above to see the exact files. Use <strong>Developer file map</strong> only when you need every import.</div>`;
 }
 
 function showStoryStage(stageKey) {

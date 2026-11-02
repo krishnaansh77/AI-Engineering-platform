@@ -156,13 +156,15 @@ and should remain on Railway or an equivalent service.
   columns, readable path-aware labels, visible edges, and an explicit All files
   scope for isolated files. The local Eternixx1 view shows 16 connected files,
   15 imports, and 10 isolated files hidden by default.
-- [x] Replaced the default V2 graph entry point with the Repository story map:
-  **Screens people use → Work after a click → Shared building blocks → Data and
-  outside services**. It is derived from conservative folder heuristics and is
-  intentionally a conceptual explanation rather than a claim about every exact
-  import. A separate **Developer file map** tab retains Cytoscape import detail.
-  The local Eternixx1 smoke test verified stage drill-down and developer-map
-  rendering; the backend suite remains `65 passed, 4 skipped`.
+- [x] Replaced the default V2 graph entry point with a compact Repository story
+  map: a one-sentence summary, a main row for **Screens people use → Work after
+  a click → Data and outside services** when those stages exist, and a compact
+  support row for shared building blocks, app-frame files, tests, and setup.
+  It is derived from conservative folder heuristics and is intentionally a
+  conceptual explanation rather than a claim about every exact import. A
+  separate **Developer file map** tab retains Cytoscape import detail. The local
+  Eternixx1 smoke test verified the compact blueprint and stage drill-down; the
+  backend suite remains `65 passed, 4 skipped`.
 
 ### No-cost production decision
 

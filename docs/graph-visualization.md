@@ -10,10 +10,17 @@ when exact imports matter.
 
 The story map groups files using conservative path heuristics into plain-language
 stages such as **Screens people use**, **Work after a click**, and **Shared
-building blocks**. Test files and startup/configuration files are shown as
-supporting parts rather than mixed into the main journey. It deliberately does
-not claim that every visible arrow represents a literal source-code edge; the
-arrows describe the usual conceptual path through an application.
+building blocks**. The main row is intentionally limited to stages that exist in
+the repository, while tests, startup/configuration, and app-frame files are
+shown as compact supporting parts below it. It deliberately does not claim that
+every visible arrow represents a literal source-code edge; the arrows describe
+the usual conceptual path through an application.
+
+The visual is a compact architecture blueprint: a one-sentence summary explains
+the repository first, the main row shows the user-facing flow, and the support
+row prevents secondary files from competing with the main story. On narrow
+screens the flow becomes a vertical path, keeping the same order without a
+horizontal scroll.
 
 The **Developer file map** remains available as the second tab. It uses
 Cytoscape.js because it is framework-independent, supports graph analysis and

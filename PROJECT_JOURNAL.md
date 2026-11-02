@@ -32,6 +32,10 @@
 - The repository page now leads with a child-friendly Repository story map:
   plain-language app stages reveal their source files on demand, while the exact
   dependency graph is retained as an optional Developer file map.
+- The story map is now a compact architecture blueprint: a one-sentence repo
+  summary, a main user-flow row, and a separate support row for shared helpers,
+  app-frame files, tests, and setup. The layout becomes a vertical path on small
+  screens so the structure remains readable without wasting space.
 - The backend applies checked-in Alembic migrations automatically at startup when `AUTO_MIGRATE_ON_STARTUP=true`.
 
 ---
