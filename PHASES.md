@@ -405,7 +405,7 @@
 
 - [x] Query result caching (Redis)
 - [ ] Route simple queries to smaller/cheaper models
-- [ ] Context compression before LLM call
+- [x] Bound ranked code context to 18,000 characters; citations only include supplied snippets
 - [x] Embedding reuse — skip re-embedding unchanged files
 
 ---

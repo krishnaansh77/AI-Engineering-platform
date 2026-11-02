@@ -261,6 +261,14 @@ and should remain on Railway or an equivalent service.
 - [x] Workspace dashboard now displays direct declared package dependencies
   between accessible ready repositories, with links and evidence labels. Two
   focused manifest extraction tests cover Node and Python package metadata.
+- [x] Bounded LLM input to 18,000 context characters while preserving ranked
+  snippets and limiting citations to snippets actually sent to the model.
+- [x] Fixed the OpenAI SDK/HTTPX constructor incompatibility by upgrading the
+  pinned SDK to the first release with HTTPX 0.28 compatibility (1.55.3).
+- [x] Full backend suite passes locally: 72 passed, 4 skipped. Verified the
+  updated OpenAI SDK constructs an HTTPX client without making an API request.
+- [x] Replaced an unsafe nested regex in the repository story-map classifier
+  with bounded path-segment checks; the CI JavaScript security lint passes.
 - [ ] Phase 4 next: add branch/tag-aware indexing and queries. Django production
   cutover remains blocked by Railway capacity.
 - [ ] Phase 4 later: finish Django database-backed parity verification before

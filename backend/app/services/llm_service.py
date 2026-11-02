@@ -47,6 +47,7 @@ Instructions:
 # Keep prompts small enough for free-tier TPM limits while retaining complete
 # file/symbol/line provenance for citations.
 _MAX_CONTEXT_CHARS_PER_CHUNK = 4500
+_MAX_CONTEXT_CHARS_TOTAL = 18000
 
 
 class LLMService:
@@ -57,12 +58,14 @@ class LLMService:
 
     def _build_context_prompt(
         self, retrieved_chunks: List[RetrievedChunk], repo_name: str
-    ) -> str:
-        """Format retrieved code chunks into a structured context block for the LLM."""
+    ) -> tuple[str, List[RetrievedChunk]]:
+        """Format ranked chunks under a total prompt budget and return included sources."""
         if not retrieved_chunks:
-            return "No relevant code chunks were found in the index for this query."
+            return "No relevant code chunks were found in the index for this query.", []
 
         sections = [f"Repository: {repo_name}\nRelevant Code Context:"]
+        included_chunks: List[RetrievedChunk] = []
+        used_chars = len(sections[0])
         for idx, chunk in enumerate(retrieved_chunks, start=1):
             symbol_info = f" | Symbol: {chunk.symbol_name}" if chunk.symbol_name else ""
             header = (
@@ -72,10 +75,28 @@ class LLMService:
             content = chunk.content[:_MAX_CONTEXT_CHARS_PER_CHUNK]
             if len(chunk.content) > _MAX_CONTEXT_CHARS_PER_CHUNK:
                 content += "\n…[snippet truncated for context budget]"
+            prefix = f"{header}\n```{chunk.language}\n"
+            suffix = "\n```"
+            overhead = len("\n\n") + len(prefix) + len(suffix)
+            remaining = _MAX_CONTEXT_CHARS_TOTAL - used_chars - overhead
+            if remaining <= 0:
+                break
+            if len(content) > remaining:
+                marker = "\n…[remaining context omitted]"
+                content = (
+                    content[: remaining - len(marker)] + marker
+                    if remaining > len(marker)
+                    else content[:remaining]
+                )
             code_block = f"```{chunk.language}\n{content}\n```"
-            sections.append(f"{header}\n{code_block}")
+            section = f"{header}\n{code_block}"
+            sections.append(section)
+            included_chunks.append(chunk)
+            used_chars += len(section) + 2
+            if used_chars >= _MAX_CONTEXT_CHARS_TOTAL:
+                break
 
-        return "\n\n".join(sections)
+        return "\n\n".join(sections), included_chunks
 
     async def answer_query(
         self,
@@ -84,7 +105,7 @@ class LLMService:
         repo_name: str,
     ) -> QueryAnswer:
         """Generate an answer with citations for a query using retrieved code chunks."""
-        context_text = self._build_context_prompt(retrieved_chunks, repo_name)
+        context_text, cited_chunks = self._build_context_prompt(retrieved_chunks, repo_name)
 
         user_content = (
             f"Question:\n{query}\n\n"
@@ -104,7 +125,7 @@ class LLMService:
         citations: List[Citation] = []
         seen_citations = set()
 
-        for chunk in retrieved_chunks:
+        for chunk in cited_chunks:
             key = (chunk.file_path, chunk.symbol_name, chunk.start_line, chunk.end_line)
             if key not in seen_citations:
                 seen_citations.add(key)

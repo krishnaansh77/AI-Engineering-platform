@@ -11,11 +11,13 @@ from app.services.retrieval_service import RetrievedChunk
 class FixedProvider(LLMProvider):
     def __init__(self, answer: str):
         self.answer = answer
+        self.messages = []
 
     def get_provider_name(self) -> str:
         return "fixed-test-provider"
 
     async def complete(self, messages: list[LLMMessage], **kwargs) -> LLMResponse:
+        self.messages = messages
         return LLMResponse(self.answer, "fixed", 1, 1)
 
 
@@ -37,6 +39,28 @@ class TestCitationCoverage(unittest.TestCase):
         service = LLMService(FixedProvider("No matching code was found."))
         result = asyncio.run(service.answer_query("Unknown", [], "acme/demo"))
         self.assertEqual(result.citation_coverage, 0.0)
+
+    def test_context_budget_bounds_prompt_and_citations(self):
+        provider = FixedProvider("See src/file_0.py")
+        service = LLMService(provider)
+        chunks = [
+            RetrievedChunk(
+                uuid.uuid4(), f"src/file_{index}.py", None, "function", 1, 400,
+                "x" * 4500, "python", 1.0 - index / 100,
+            )
+            for index in range(8)
+        ]
+
+        result = asyncio.run(service.answer_query("Explain the code", chunks, "acme/demo"))
+
+        user_prompt = provider.messages[1].content
+        context_prompt = user_prompt.split("\n\nRepository:", 1)[1].split(
+            "\n\nPlease provide", 1
+        )[0]
+        self.assertLessEqual(len(context_prompt), 18000)
+        self.assertLess(len(result.citations), len(chunks))
+        included_paths = [citation.file_path for citation in result.citations]
+        self.assertEqual(included_paths, [f"src/file_{index}.py" for index in range(4)])
 
 
 if __name__ == "__main__":

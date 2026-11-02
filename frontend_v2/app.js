@@ -65,13 +65,17 @@ const storyStages = [
   { key: "setup", icon: "⚙", title: "App setup", description: "Instructions that help the app start, build, and run." },
   { key: "other", icon: "⌂", title: "App frame and helpers", description: "The pieces that start, guard, or support the app." },
 ];
+const screenPageFiles = new Set(["page.js", "page.jsx", "page.ts", "page.tsx"]);
+const screenEntryFiles = new Set(["index.js", "index.jsx", "index.ts", "index.tsx", "home.js", "home.jsx", "home.ts", "home.tsx"]);
 
 function storyStageForFile(filePath) {
   const path = String(filePath || "").toLowerCase().replaceAll("\\", "/");
   const name = path.split("/").pop() || "";
-  const parts = new Set(path.split("/"));
+  const segments = path.split("/").filter(Boolean);
+  const parts = new Set(segments);
   if (name.includes("test") || parts.has("tests") || parts.has("__tests__") || parts.has("spec")) return "safety";
-  if (/(^|\/)(app|pages)(\/.*)?\/page\.(js|jsx|ts|tsx)$/.test(path) || /(^|\/)(app|pages)\/(index|home)\.(js|jsx|ts|tsx)$/.test(path)) return "screens";
+  const parent = segments.at(-2);
+  if ((screenPageFiles.has(name) && segments.slice(0, -1).some((part) => part === "app" || part === "pages")) || (screenEntryFiles.has(name) && (parent === "app" || parent === "pages"))) return "screens";
   if ([...parts].some((part) => ["actions", "api", "services", "controllers", "use-cases", "handlers"].includes(part))) return "work";
   if ([...parts].some((part) => ["components", "hooks", "ui", "lib", "utils", "helpers"].includes(part))) return "building";
   if ([...parts].some((part) => ["models", "database", "repositories", "providers", "schemas", "migrations", "store", "stores"].includes(part)) || /(stripe|supabase|firebase|prisma|mongoose|sequelize)/.test(path)) return "data";
